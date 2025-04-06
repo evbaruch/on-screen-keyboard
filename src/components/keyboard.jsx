@@ -4,64 +4,64 @@ import styles from "./keyboard.module.css";
 const keyboardLayout = [
   [
     { key: "Esc", className: "esc" },
-    { key: "`", shift: "~" },
+    { key: "`", shift: "~", fourth: ";" }, // Example Hebrew punctuation
     { key: "1", shift: "!" },
     { key: "2", shift: "@" },
     { key: "3", shift: "#" },
-    { key: "4", shift: "$" },
+    { key: "4", shift: "$", fourth: "shekel" },
     { key: "5", shift: "%" },
-    { key: "6", shift: "^" },
-    { key: "7", shift: "&" },
-    { key: "8", shift: "*" },
+    { key: "6", shift: "^"},
+    { key: "7", shift: "&"},
+    { key: "8", shift: "*"},
     { key: "9", shift: "(" },
     { key: "0", shift: ")" },
-    { key: "-", shift: "_" },
-    { key: "=", shift: "+" },
+    { key: "-", shift: "_", fourth: "-" },
+    { key: "=", shift: "+"},
     { key: "Backspace", className: "backspace" },
   ],
   [
     { key: "Tab", className: "tab" },
-    { key: "Q" },
-    { key: "W" },
-    { key: "E", alt: "€" },
-    { key: "R" },
-    { key: "T" },
-    { key: "Y" },
-    { key: "U" },
-    { key: "I" },
-    { key: "O" },
-    { key: "P" },
-    { key: "[", shift: "{" },
-    { key: "]", shift: "}" },
-    { key: "\\", shift: "|" },
+    { key: "Q", fourth: "/" },
+    { key: "W", fourth: "'" },
+    { key: "E", alt: "€", fourth: "ק" },
+    { key: "R", fourth: "ר" },
+    { key: "T", fourth: "א" },
+    { key: "Y", fourth: "ט" },
+    { key: "U", fourth: "ו" },
+    { key: "I", fourth: "ן" },
+    { key: "O", fourth: "ם" },
+    { key: "P", fourth: "פ" },
+    { key: "[", shift: "{", fourth: "]" },
+    { key: "]", shift: "}", fourth: "[" },
+    { key: "\\", shift: "|", fourth: "\\" },
   ],
   [
     { key: "CapsLock", className: "capslock" },
-    { key: "A" },
-    { key: "S" },
-    { key: "D" },
-    { key: "F" },
-    { key: "G" },
-    { key: "H" },
-    { key: "J" },
-    { key: "K" },
-    { key: "L" },
-    { key: ";", shift: ":" },
-    { key: "'", shift: '"' },
+    { key: "A", fourth: "ש" },
+    { key: "S", fourth: "ד" },
+    { key: "D", fourth: "ג" },
+    { key: "F", fourth: "כ" },
+    { key: "G", fourth: "ע" },
+    { key: "H", fourth: "י" },
+    { key: "J", fourth: "ח" },
+    { key: "K", fourth: "ל" },
+    { key: "L", fourth: "ך" },
+    { key: ";", shift: ":", fourth: ";" },
+    { key: "'", shift: '"', fourth: "'" },
     { key: "Enter", className: "enter" },
   ],
   [
     { key: "Shift", className: "shift" },
-    { key: "Z" },
-    { key: "X" },
-    { key: "C" },
-    { key: "V" },
-    { key: "B" },
-    { key: "N" },
-    { key: "M" },
-    { key: ",", shift: "<" },
-    { key: ".", shift: ">" },
-    { key: "/", shift: "?" },
+    { key: "Z", fourth: "ז" },
+    { key: "X", fourth: "ס" },
+    { key: "C", fourth: "ב" },
+    { key: "V", fourth: "נ" },
+    { key: "B", fourth: "מ" },
+    { key: "N", fourth: "צ" },
+    { key: "M", fourth: "ת" },
+    { key: ",", shift: "<", fourth: ">" },
+    { key: ".", shift: ">", fourth: "<" },
+    { key: "/", shift: "?", fourth: "/" },
     { key: "Shift", className: "shift" },
     { key: "↑", className: "arrow" },
   ],
@@ -130,7 +130,7 @@ function Keyboard() {
       <div className={styles.keyboard}>
         {keyboardLayout.map((row, rowIndex) => (
           <div key={rowIndex} className={styles.row}>
-            {row.map(({ key, className, shift, alt }, index) => (
+            {row.map(({ key, className, shift, alt, fourth }, index) => (
               <div
                 key={index}
                 className={`${styles.key} ${
@@ -144,6 +144,7 @@ function Keyboard() {
                 <div className={styles.primary}>{key}</div>
                 {shift && <div className={styles.secondary}>{shift}</div>}
                 {alt && <div className={styles.tertiary}>{alt}</div>}
+                {fourth && <div className={styles.fourth}>{fourth}</div>}
               </div>
             ))}
           </div>
