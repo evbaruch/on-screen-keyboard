@@ -1,0 +1,119 @@
+.keyboardContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 5px;
+}
+
+.key {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50px;
+  min-width: 50px;
+  background-color: #000000;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  user-select: none;
+  text-align: center;
+}
+
+.key:hover {
+  background-color: #d0d0d0;
+}
+
+.highlighted {
+  background-color: #ffd700;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+/* Spatial keys with wider sizes */
+.key.backspace {
+  min-width: 120px;
+}
+
+.key.tab {
+  min-width: 90px;
+}
+
+.key.capslock {
+  min-width: 110px;
+}
+
+.key.shift {
+  min-width: 130px;
+}
+
+.key.enter {
+  min-width: 120px;
+}
+
+.key.space {
+  min-width: 400px;
+}
+
+.key.ctrl,
+.key.alt {
+  min-width: 80px;
+}
+
+/* Arrow keys container */
+.arrowKeys {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px; /* Add spacing between the arrow keys and the row above */
+}
+
+/* Upper row for the up arrow */
+.arrowRowUp {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Lower row for left, down, and right arrows */
+.arrowRowDown {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Arrow key styles */
+.key.arrow {
+  min-width: 60px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #e0e0e0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.key.arrow:hover {
+  background-color: #d0d0d0;
+}
