@@ -1,29 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./keyboard.module.css";
 
 const keyboardLayout = [
   [
     { key: "Esc", className: "esc" },
-    { key: "`" },
-    { key: "1" },
-    { key: "2" },
-    { key: "3" },
-    { key: "4" },
-    { key: "5" },
-    { key: "6" },
-    { key: "7" },
-    { key: "8" },
-    { key: "9" },
-    { key: "0" },
-    { key: "-" },
-    { key: "=" },
+    { key: "`", shift: "~" },
+    { key: "1", shift: "!" },
+    { key: "2", shift: "@" },
+    { key: "3", shift: "#" },
+    { key: "4", shift: "$" },
+    { key: "5", shift: "%" },
+    { key: "6", shift: "^" },
+    { key: "7", shift: "&" },
+    { key: "8", shift: "*" },
+    { key: "9", shift: "(" },
+    { key: "0", shift: ")" },
+    { key: "-", shift: "_" },
+    { key: "=", shift: "+" },
     { key: "Backspace", className: "backspace" },
   ],
   [
     { key: "Tab", className: "tab" },
     { key: "Q" },
     { key: "W" },
-    { key: "E" },
+    { key: "E", alt: "€" },
     { key: "R" },
     { key: "T" },
     { key: "Y" },
@@ -31,9 +31,9 @@ const keyboardLayout = [
     { key: "I" },
     { key: "O" },
     { key: "P" },
-    { key: "[" },
-    { key: "]" },
-    { key: "\\" },
+    { key: "[", shift: "{" },
+    { key: "]", shift: "}" },
+    { key: "\\", shift: "|" },
   ],
   [
     { key: "CapsLock", className: "capslock" },
@@ -46,8 +46,8 @@ const keyboardLayout = [
     { key: "J" },
     { key: "K" },
     { key: "L" },
-    { key: ";" },
-    { key: "'", className: "" },
+    { key: ";", shift: ":" },
+    { key: "'", shift: '"' },
     { key: "Enter", className: "enter" },
   ],
   [
@@ -59,10 +59,11 @@ const keyboardLayout = [
     { key: "B" },
     { key: "N" },
     { key: "M" },
-    { key: "," },
-    { key: "." },
-    { key: "/" },
+    { key: ",", shift: "<" },
+    { key: ".", shift: ">" },
+    { key: "/", shift: "?" },
     { key: "Shift", className: "shift" },
+    { key: "↑", className: "arrow" },
   ],
   [
     { key: "Ctrl", className: "ctrl" },
@@ -70,95 +71,81 @@ const keyboardLayout = [
     { key: "Space", className: "space" },
     { key: "Alt", className: "alt" },
     { key: "Ctrl", className: "ctrl" },
+    { key: "←", className: "arrow" },
+    { key: "↓", className: "arrow" },
+    { key: "→", className: "arrow" },
   ],
 ];
 
-const arrowKeys = [
-  { key: "↑", className: "arrowup" },
-  { key: "←", className: "arrow" },
-  { key: "↓", className: "arrow" },
-  { key: "→", className: "arrow" },
-];
-
 function Keyboard() {
-  const [highlighted, setHighlighted] = useState(null);
+  const [highlighted, setHighlighted] = useState([]);
+  const [modifiers, setModifiers] = useState({ Shift: false, Alt: false });
 
   const handleKeyDown = (event) => {
     const key = event.key === " " ? "Space" : event.key; // Map spacebar to "Space"
     const normalizedKey = key.toUpperCase(); // Normalize to uppercase for consistency
-    if (
-      keyboardLayout
-        .flat()
-        .map((k) => k.key.toUpperCase())
-        .includes(normalizedKey) ||
-      arrowKeys.map((k) => k.key).includes(key)
-    ) {
-      setHighlighted(normalizedKey);
+
+    // Update modifiers
+    if (normalizedKey === "SHIFT" || normalizedKey === "ALT") {
+      setModifiers((prev) => ({ ...prev, [normalizedKey]: true }));
     }
+
+    setHighlighted((prev) => [...new Set([...prev, normalizedKey])]);
   };
 
-  const handleKeyUp = () => {
-    setHighlighted(null);
+  const handleKeyUp = (event) => {
+    const key = event.key === " " ? "Space" : event.key; // Map spacebar to "Space"
+    const normalizedKey = key.toUpperCase(); // Normalize to uppercase for consistency
+
+    // Update modifiers
+    if (normalizedKey === "SHIFT" || normalizedKey === "ALT") {
+      setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
+    }
+
+    setHighlighted((prev) => prev.filter((k) => k !== normalizedKey));
   };
 
-  if (typeof window !== "undefined") {
+  useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-  }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const getKeyLabel = (keyObj) => {
+    if (modifiers.Shift && keyObj.shift) {
+      return keyObj.shift;
+    }
+    if (modifiers.Alt && keyObj.alt) {
+      return keyObj.alt;
+    }
+    return keyObj.key;
+  };
 
   return (
     <div className={styles.keyboardContainer}>
       <div className={styles.keyboard}>
         {keyboardLayout.map((row, rowIndex) => (
           <div key={rowIndex} className={styles.row}>
-            {row.map(({ key, className }, index) => (
+            {row.map(({ key, className, shift, alt }, index) => (
               <div
                 key={index}
                 className={`${styles.key} ${
                   className ? styles[className] : ""
                 } ${
-                  highlighted === key.toUpperCase() ? styles.highlighted : ""
+                  highlighted.includes(key.toUpperCase())
+                    ? styles.highlighted
+                    : ""
                 }`}
               >
-                {key}
+                {getKeyLabel({ key, shift, alt })}
               </div>
             ))}
           </div>
         ))}
-      </div>
-      <div className={styles.arrowKeys}>
-        <div className={styles.arrowRowUp}>
-          <div
-            className={`${styles.key} ${styles.arrow} ${
-              highlighted === "↑" ? styles.highlighted : ""
-            }`}
-          >
-            ↑
-          </div>
-        </div>
-        <div className={styles.arrowRowDown}>
-          <div
-            className={`${styles.key} ${styles.arrow} ${
-              highlighted === "←" ? styles.highlighted : ""
-            }`}
-          >
-            ←
-          </div>
-          <div
-            className={`${styles.key} ${styles.arrow} ${
-              highlighted === "↓" ? styles.highlighted : ""
-            }`}
-          >
-            ↓
-          </div>
-          <div
-            className={`${styles.key} ${styles.arrow} ${
-              highlighted === "→" ? styles.highlighted : ""
-            }`}
-          >
-            →
-          </div>
-        </div>
       </div>
     </div>
   );
