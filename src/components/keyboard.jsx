@@ -141,7 +141,9 @@ function Keyboard() {
                     : ""
                 }`}
               >
-                {getKeyLabel({ key, shift, alt })}
+                <div className={styles.primary}>{key}</div>
+                {shift && <div className={styles.secondary}>{shift}</div>}
+                {alt && <div className={styles.tertiary}>{alt}</div>}
               </div>
             ))}
           </div>
