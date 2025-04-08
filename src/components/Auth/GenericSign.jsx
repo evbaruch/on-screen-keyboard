@@ -46,6 +46,8 @@ function GenericSign({ type, onSuccess }) {
   // Clear the message only when switching between Sign In and Sign Up
   useEffect(() => {
     setMessage("");
+    setUsername("");
+    setPassword("");
   }, [type]);
 
   return (

@@ -9,8 +9,6 @@ function Keyboard() {
   const [isCapsLockActive, setIsCapsLockActive] = useState(false); // Track Caps Lock state
 
   const handleKeyDown = (event) => {
-    console.log("KeyDown Event:", event);
-
     const key = event.key === " " ? "Space" : event.key;
     const normalizedKey = key.toUpperCase();
 
@@ -41,8 +39,6 @@ function Keyboard() {
   };
 
   const handleKeyUp = (event) => {
-    console.log("KeyUp Event:", event);
-
     const key = event.key === " " ? "Space" : event.key;
     const normalizedKey = key.toUpperCase();
 
