@@ -28,10 +28,10 @@ function TextArea() {
       value={text}
       readOnly // Prevent manual editing to avoid conflicts
       style={{
-        width: "100%",
+        width: "90%",
         height: "150px",
         fontSize: "16px",
-        padding: "10px",
+        padding: "1px",
         boxSizing: "border-box",
       }}
     />

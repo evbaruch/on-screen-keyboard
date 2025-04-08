@@ -4,20 +4,25 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: 30 / 1;
-  gap: 20px;
-  padding: 20px;
+  margin: 1rem auto;
+  padding: 1rem;
+  background-color: #bdb4b4;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .keyboard {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1vh; /* Gap between rows scales with viewport height */
+  width: 100%;
+  max-width: 100%;
 }
 
 .row {
   display: flex;
-  gap: 5px;
+  gap: 0.8vw; /* Increased gap between keys for better spacing */
+  justify-content: center;
 }
 
 .key {
@@ -25,12 +30,13 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 50px;
-  min-width: 50px;
-  background-color: #000000;
-  border: 1px solid #000000;
-  border-radius: 5px;
-  font-size: 14px;
+  flex: 1;
+  height: 6vh; /* Increased height for better visibility */
+  aspect-ratio: 1 / 1.1; /* Adjusted aspect ratio to make keys wider */
+  background-color: #e0e0e0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1.2rem; /* Slightly larger font size */
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.2s;
@@ -38,116 +44,83 @@
   text-align: center;
 }
 
+.key:hover {
+  background-color: #d6d6d6;
+}
+
 .primary {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: bold;
 }
 
-/* Secondary (Shift) character in the upper-left corner */
+.highlighted {
+  background-color: #007bff;
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}
+
 .secondary {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  font-size: 10px;
+  top: 5%;
+  left: 5%;
+  font-size: 0.8rem;
   color: #888;
 }
 
-/* Tertiary (Alt) character in the upper-left corner, slightly below secondary */
 .tertiary {
   position: absolute;
-  top: 20px;
-  left: 5px;
-  font-size: 10px;
+  top: 20%;
+  left: 5%;
+  font-size: 0.8rem;
   color: #888;
 }
 
-/* Fourth (Hebrew or additional signs) character in the bottom-left corner */
 .fourth {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
-  font-size: 10px;
+  bottom: 5%;
+  right: 5%;
+  font-size: 0.8rem;
   color: #888;
-}
-
-.highlighted {
-  background-color: #ffd700;
-  transform: scale(1.1);
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
-}
-
-.key:hover {
-  background-color: #d0d0d0;
-}
-
-/* Spatial keys with wider sizes */
-.key.backspace {
-  min-width: 120px;
-}
-
-.key.tab {
-  min-width: 90px;
-}
-
-.key.capslock {
-  min-width: 110px;
-}
-
-.key.shift {
-  min-width: 130px;
-}
-
-.key.enter {
-  min-width: 120px;
 }
 
 .key.space {
-  min-width: 400px;
+  flex: 6;
+  background-color: #f0f0f0;
+}
+
+.key.backspace,
+.key.tab,
+.key.capslock,
+.key.shift,
+.key.enter {
+  flex: 2.5; /* Increased width for special keys */
+  background-color: #f0f0f0;
 }
 
 .key.ctrl,
 .key.alt {
-  min-width: 80px;
+  flex: 2; /* Increased width for control keys */
+  background-color: #f0f0f0;
 }
 
-/* Arrow keys container */
-.arrowKeys {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  margin-top: 10px; /* Add spacing between the arrow keys and the row above */
-}
-
-/* Upper row for the up arrow */
-.arrowRowUp {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Lower row for left, down, and right arrows */
-.arrowRowDown {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 5px;
-}
-
-/* Arrow key styles */
 .key.arrow {
-  min-width: 80px;
-  height: 50px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 5px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.2s;
+  flex: 1.5; /* Increased width for arrow keys */
+  aspect-ratio: 1 / 1; /* Maintain square shape */
+  background-color: #f0f0f0;
 }
 
-.key.arrow:hover {
-  background-color: #d0d0d0;
+@media (max-width: 768px) {
+  .key {
+    height: 5vh; /* Reduce height for smaller screens */
+    font-size: 1rem; /* Adjust font size for smaller screens */
+  }
+
+  .row {
+    gap: 0.5vw; /* Reduce gap between keys for smaller screens */
+  }
+
+  .key.space {
+    flex: 5; /* Adjust space key width for smaller screens */
+  }
 }

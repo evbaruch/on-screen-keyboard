@@ -1,0 +1,76 @@
+.authContainer {
+  text-align: center;
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 90%;
+  margin: 1rem auto;
+}
+
+.authTitle {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.authMessage {
+  font-size: 1rem;
+  color: #ff0000; /* Red for error or success messages */
+  margin: 0.5rem 0;
+}
+
+.authInput {
+  width: 100%;
+  max-width: 300px;
+  padding: 0.5em;
+  margin: 0.5em 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.authButton {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.25s, border-color 0.25s;
+  margin: 1rem 0; /* Added margin for spacing */
+}
+
+.authButton:hover {
+  background-color: #0056b3;
+}
+
+.authButton:focus,
+.authButton:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+.authToggle {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.authToggle:hover {
+  color: #0056b3;
+}
+
+.authForm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
