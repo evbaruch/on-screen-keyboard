@@ -84,28 +84,43 @@
   color: #888;
 }
 
+/* Space key */
 .key.space {
-  flex: 6;
+  flex: 6; /* Make the space key much wider */
   background-color: #f0f0f0;
 }
 
-.key.backspace,
-.key.tab,
-.key.capslock,
-.key.shift,
+/* Special keys with different sizes */
+.key.tab {
+  flex: 1.5; /* Tab key is 1.5 times the size of a regular key */
+  background-color: #f0f0f0;
+}
+
+.key.capslock {
+  flex: 1.8; /* Caps Lock key is slightly wider */
+  background-color: #f0f0f0;
+}
+
+.key.shift {
+  flex: 3; /* Shift key is much wider than Caps Lock */
+  background-color: #f0f0f0;
+}
+
 .key.enter {
-  flex: 2.5; /* Increased width for special keys */
+  flex: 2.5; /* Enter key is also wider */
   background-color: #f0f0f0;
 }
 
+/* Control and Alt keys */
 .key.ctrl,
 .key.alt {
-  flex: 2; /* Increased width for control keys */
+  flex: 1.5; /* Control and Alt keys are slightly wider */
   background-color: #f0f0f0;
 }
 
+/* Arrow keys */
 .key.arrow {
-  flex: 1.5; /* Increased width for arrow keys */
+  flex: 1;
   aspect-ratio: 1 / 1; /* Maintain square shape */
   background-color: #f0f0f0;
 }
