@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./Auth.module.css";
 
 function GenericSign({ type, onSuccess }) {
@@ -43,6 +43,11 @@ function GenericSign({ type, onSuccess }) {
     }
   };
 
+  // Clear the message only when switching between Sign In and Sign Up
+  useEffect(() => {
+    setMessage("");
+  }, [type]);
+
   return (
     <div className={styles.authContainer}>
       <h1 className={styles.authTitle}>{isSignUp ? "Sign Up" : "Sign In"}</h1>
@@ -54,6 +59,7 @@ function GenericSign({ type, onSuccess }) {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className={styles.authInput}
+          autoComplete="username" /* Enable browser autocomplete for username */
         />
         <input
           type="password"
@@ -61,6 +67,7 @@ function GenericSign({ type, onSuccess }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={styles.authInput}
+          autoComplete={isSignUp ? "new-password" : "current-password"} /* Enable browser autocomplete for password */
         />
         <button onClick={handleSubmit} className={styles.authButton}>
           {isSignUp ? "Sign Up" : "Sign In"}

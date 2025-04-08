@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./keyboard.module.css";
 
-function KeyboardKey({ keyObj, highlighted, modifiers }) {
+function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive }) {
   const { id, key, className, shift, alt, fourth } = keyObj;
 
   const getKeyLabel = () => {
@@ -24,6 +24,9 @@ function KeyboardKey({ keyObj, highlighted, modifiers }) {
       {shift && <div className={styles.secondary}>{shift}</div>}
       {alt && <div className={styles.tertiary}>{alt}</div>}
       {fourth && <div className={styles.fourth}>{fourth}</div>}
+      {id === "capslock" && isCapsLockActive && (
+        <div className={styles.capsLockIndicator}></div> /* Add dot of light */
+      )}
     </div>
   );
 }
