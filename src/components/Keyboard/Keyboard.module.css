@@ -156,3 +156,24 @@
     flex: 5; /* Adjust space key width for smaller screens */
   }
 }
+
+/* Add a glowing dot for active keys */
+.dot {
+  position: absolute;
+  bottom: 5%; /* Move the dot to the bottom of the key */
+  left: 50%; /* Center the dot horizontally */
+  transform: translateX(-50%); /* Adjust for centering */
+  width: 5px; /* Smaller width */
+  height: 5px; /* Smaller height */
+  background-color: #007bff; /* Blue light */
+  border-radius: 50%; /* Make it circular */
+  box-shadow: 0 0 3px rgba(0, 123, 255, 0.8); /* Adjust glow effect */
+}
+
+/* Active key styling */
+.active {
+  background-color: #007bff;
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}
