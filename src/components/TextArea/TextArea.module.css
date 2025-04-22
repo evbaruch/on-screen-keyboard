@@ -44,6 +44,12 @@
 .saveButton {
   margin-bottom: 10px;
   padding: 5px 10px;
+  background-image: url("/src/assets/TextArea/diskette.png");
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   background-color: #007bff;
   color: white;
   border: none;
@@ -53,7 +59,10 @@
 
 .saveButton:hover {
   background-color: #0056b3;
+  scale: 1.05;
+  transition: scale 0.2s ease-in-out;
 }
+
 
 .fileNameArea {
   margin-bottom: 5px;
@@ -65,12 +74,15 @@
 .TextWindow {
   border: 1px solid #ccc;
   padding: 10px;
-  min-height: 100px;
+  min-height: 25vh;
+  background-color: #fff;
+  border-radius: 10px;
   overflow-y: auto;
   outline: none;
   white-space: pre-wrap; /* Preserve whitespace */
-  word-wrap: break-word; /* Break long words */
-  font-family: monospace; /* Optional: Use a monospace font for better alignment */
+  word-wrap:  break-word !important; /* Break long words */
+  word-break: break-word; /* Break long words */
+  font-family: monospace; 
 }
 
 .cursor {

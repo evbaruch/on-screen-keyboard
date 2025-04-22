@@ -59,7 +59,6 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow , la
 
       <div className={styles.editor}>
         <button className={styles.saveButton} onClick={handleSave}>
-          Save
         </button>
         {currentFile && (
           <div className={styles.fileNameArea}>
