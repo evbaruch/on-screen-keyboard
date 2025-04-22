@@ -1,40 +1,81 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import styles from "./TextArea.module.css";
+import TextWindow from "./TextWindow";
+import {
+  loadFilesForUser,
+  saveFilesForUser,
+} from "../../utils/localStorageUtils";
 
-function TextArea() {
+function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow }) {
+  const [files, setFiles] = useState(loadFilesForUser(username) || {});
+  const [currentFile, setCurrentFile] = useState(null);
   const [text, setText] = useState("");
 
-  const handleKeyPress = (event) => {
-    if (event.key === "Backspace") {
-      // Remove the last character from the text
-      setText((prevText) => prevText.slice(0, -1));
-    } else if (event.key.length === 1) {
-      // Append the pressed key to the text (only for printable characters)
-      setText((prevText) => prevText + event.key);
+  const handleSave = () => {
+    const fileName = prompt("Enter a name for the file:", "Untitled.txt");
+    if (fileName) {
+      const updatedFiles = { ...files, [fileName]: text };
+      setFiles(updatedFiles);
+      setCurrentFile({ name: fileName, content: text });
+      saveFilesForUser(username, updatedFiles);
     }
   };
 
-  useEffect(() => {
-    // Add event listener for keydown (to capture Backspace and other keys)
-    window.addEventListener("keydown", handleKeyPress);
+  const handleFileClick = (fileName) => {
+    setCurrentFile({ name: fileName, content: files[fileName] });
+    setText(files[fileName]);
+  };
 
-    return () => {
-      // Cleanup event listener on component unmount
-      window.removeEventListener("keydown", handleKeyPress);
-    };
-  }, []);
+  const handleContentChange = (newContent) => {
+    setText(newContent);
+    if (currentFile) {
+      const updatedFiles = { ...files, [currentFile.name]: newContent };
+      setFiles(updatedFiles);
+      saveFilesForUser(username, updatedFiles);
+    }
+  };
+
+  const handleSetActive = (id) => {
+    setLastActiveTextWindow(id); // Update the last active TextWindow
+  };
 
   return (
-    <textarea
-      value={text}
-      readOnly // Prevent manual editing to avoid conflicts
-      style={{
-        width: "90%",
-        height: "150px",
-        fontSize: "16px",
-        padding: "1px",
-        boxSizing: "border-box",
-      }}
-    />
+    <div className={styles.container}>
+      <div className={styles.fileExplorer}>
+        <h3>Files</h3>
+        <ul>
+          {Object.keys(files).map((fileName, index) => (
+            <li
+              key={index}
+              className={
+                currentFile?.name === fileName ? styles.activeFile : ""
+              }
+              onClick={() => handleFileClick(fileName)}
+            >
+              {fileName}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className={styles.editor}>
+        <button className={styles.saveButton} onClick={handleSave}>
+          Save
+        </button>
+        {currentFile && (
+          <div className={styles.fileNameArea}>
+            <span>{currentFile.name}</span>
+          </div>
+        )}
+        <TextWindow
+          id="textWindow1"
+          content={text}
+          onContentChange={handleContentChange}
+          isActive={lastActiveTextWindow === "textWindow1"}
+          onSetActive={() => handleSetActive("textWindow1")}
+        />
+      </div>
+    </div>
   );
 }
 

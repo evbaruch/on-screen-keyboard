@@ -1,0 +1,88 @@
+.container {
+  display: flex;
+  height: 40vh;
+}
+
+.fileExplorer {
+  width: 20%;
+  border-right: 1px solid #ccc;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+.fileExplorer h3 {
+  margin: 0 0 10px;
+}
+
+.fileExplorer ul {
+  list-style: none;
+  padding: 0;
+}
+
+.fileExplorer li {
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.fileExplorer li:hover {
+  background-color: #e0e0e0;
+}
+
+.fileExplorer .activeFile {
+  background-color: #d0d0ff;
+  font-weight: bold;
+}
+
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.saveButton {
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.saveButton:hover {
+  background-color: #0056b3;
+}
+
+.fileNameArea {
+  margin-bottom: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+.TextWindow {
+  border: 1px solid #ccc;
+  padding: 10px;
+  min-height: 100px;
+  overflow-y: auto;
+  outline: none;
+  white-space: pre-wrap; /* Preserve whitespace */
+  word-wrap: break-word; /* Break long words */
+  font-family: monospace; /* Optional: Use a monospace font for better alignment */
+}
+
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: black;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styles from "./Auth.module.css";
 
 function GenericSign({ type, onSuccess }) {
@@ -26,9 +26,9 @@ function GenericSign({ type, onSuccess }) {
       users.push({ username, password });
       localStorage.setItem("users", JSON.stringify(users));
       setMessage("Signup successful! You can now log in.");
-      setUsername("");
-      setPassword("");
-      onSuccess(); // Trigger success callback (e.g., switch to Sign In)
+      setUsername(""); // Reset username
+      setPassword(""); // Reset password
+      onSuccess(username, password); // Pass both username and password to the parent
     } else {
       // Handle Sign In
       const user = users.find(
@@ -36,19 +36,18 @@ function GenericSign({ type, onSuccess }) {
       );
       if (user) {
         setMessage("Login successful!");
-        onSuccess(username); // Trigger success callback (e.g., log in the user)
+        onSuccess(username, password); // Pass both username and password to the parent
       } else {
         setMessage("Invalid username or password.");
       }
     }
   };
 
-  // Clear the message only when switching between Sign In and Sign Up
-  useEffect(() => {
-    setMessage("");
-    setUsername("");
-    setPassword("");
-  }, [type]);
+  const handleReset = () => {
+    setMessage(""); // Clear the message
+    setUsername(""); // Reset username
+    setPassword(""); // Reset password
+  };
 
   return (
     <div className={styles.authContainer}>
@@ -73,6 +72,13 @@ function GenericSign({ type, onSuccess }) {
         />
         <button onClick={handleSubmit} className={styles.authButton}>
           {isSignUp ? "Sign Up" : "Sign In"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          className={styles.authResetButton}
+        >
+          Reset
         </button>
       </div>
     </div>
