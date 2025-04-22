@@ -27,13 +27,34 @@ function TextWindow({
     }
   }, [id, content]);
 
+  // Improved cursor position saving function
   const saveCursorPosition = () => {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
+      
+      // Store both the node and offset for more accurate position restoration
+      const textWindow = document.getElementById(id);
+      
+      // Get the container node path for accurate restoration
+      let node = range.startContainer;
+      const path = [];
+      
+      // Get path from node to text window
+      while (node !== textWindow && node.parentNode) {
+        const parent = node.parentNode;
+        const children = Array.from(parent.childNodes);
+        path.unshift(children.indexOf(node));
+        node = parent;
+      }
+      
       const position = {
+        path: path,
         offset: range.startOffset,
+        // Store the entire innerHTML to detect content changes
+        html: textWindow.innerHTML
       };
+      
       setCursorPosition(position);
 
       // Save cursor position to the user's object in local storage
@@ -43,31 +64,84 @@ function TextWindow({
     }
   };
 
+  // Improved function to restore cursor position
   const restoreCursorPosition = () => {
     const cursorPositions = loadCursorPositionsForUser(username);
     const savedPosition = cursorPositions[id];
     if (!savedPosition) return;
-
-    const selection = window.getSelection();
-    const range = document.createRange();
-
+    
     const textWindow = document.getElementById(id);
-    if (textWindow && textWindow.firstChild) {
-      const node = textWindow.firstChild;
-      const offset = Math.min(savedPosition.offset, node.textContent.length);
-      range.setStart(node, offset);
-      range.collapse(true);
-    } else if (textWindow) {
-      if (!textWindow.firstChild) {
-        const textNode = document.createTextNode(content || "");
-        textWindow.appendChild(textNode);
+    if (!textWindow) return;
+    
+    try {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      
+      // If HTML has changed significantly, position at the end
+      if (savedPosition.html && textWindow.innerHTML !== savedPosition.html) {
+        // Position cursor at the end
+        if (textWindow.lastChild) {
+          if (textWindow.lastChild.nodeType === Node.TEXT_NODE) {
+            range.setStart(textWindow.lastChild, textWindow.lastChild.length);
+          } else {
+            range.setStartAfter(textWindow.lastChild);
+          }
+        } else {
+          range.setStart(textWindow, 0);
+        }
+      } else if (savedPosition.path) {
+        // Navigate to the node using the saved path
+        let node = textWindow;
+        for (let idx of savedPosition.path) {
+          if (node.childNodes && idx < node.childNodes.length) {
+            node = node.childNodes[idx];
+          } else {
+            // If path is invalid, position at the end of content
+            if (node.lastChild) {
+              if (node.lastChild.nodeType === Node.TEXT_NODE) {
+                range.setStart(node.lastChild, node.lastChild.length);
+              } else {
+                range.setStartAfter(node.lastChild);
+              }
+            } else {
+              range.setStart(node, 0);
+            }
+            break;
+          }
+        }
+        
+        // Set position within the final node
+        if (node.nodeType === Node.TEXT_NODE) {
+          const offset = Math.min(savedPosition.offset, node.length);
+          range.setStart(node, offset);
+        } else {
+          range.setStart(node, 0);
+        }
       }
-      range.setStart(textWindow.firstChild, 0);
+      
       range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } catch (e) {
+      console.error("Error restoring cursor:", e);
+      // Fallback: place cursor at end
+      const selection = window.getSelection();
+      const range = document.createRange();
+      
+      if (textWindow.lastChild) {
+        if (textWindow.lastChild.nodeType === Node.TEXT_NODE) {
+          range.setStart(textWindow.lastChild, textWindow.lastChild.length);
+        } else {
+          range.setStartAfter(textWindow.lastChild);
+        }
+      } else {
+        range.setStart(textWindow, 0);
+      }
+      
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
-
-    selection.removeAllRanges();
-    selection.addRange(range);
   };
 
   const handleFocus = () => {
@@ -121,6 +195,11 @@ function TextWindow({
     const updatedContent = textWindow.innerHTML;
     onContentChange(updatedContent);
     setShowFormatMenu(false);
+    
+    // Ensure we save the cursor position after formatting
+    setTimeout(() => {
+      saveCursorPosition();
+    }, 0);
   };
 
   return (
