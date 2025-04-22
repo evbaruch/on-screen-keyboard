@@ -16,6 +16,8 @@ function TextWindow({
   onSetActive,
 }) {
   const [cursorPosition, setCursorPosition] = useState(null);
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [formatMenuPosition, setFormatMenuPosition] = useState({ x: 0, y: 0 });
 
   // Initialize content when component mounts or when content prop changes
   useEffect(() => {
@@ -88,16 +90,88 @@ function TextWindow({
     saveCursorPosition();
   };
 
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    
+    // Only show format menu if there is text selected
+    const selection = window.getSelection();
+    if (selection.toString().trim().length > 0) {
+      setFormatMenuPosition({ x: e.pageX, y: e.pageY });
+      setShowFormatMenu(true);
+    }
+  };
+
+  const handleClickOutside = (e) => {
+    if (showFormatMenu && !e.target.closest(`.${styles.formatMenu}`)) {
+      setShowFormatMenu(false);
+    }
+  };
+
+  // Add event listener to handle clicks outside the format menu
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFormatMenu]);
+
+  const applyFormat = (command, value = null) => {
+    document.execCommand(command, false, value);
+    const textWindow = document.getElementById(id);
+    const updatedContent = textWindow.innerHTML;
+    onContentChange(updatedContent);
+    setShowFormatMenu(false);
+  };
+
   return (
-    <div
-      id={id}
-      className={`${styles.TextWindow} ${isActive ? styles.activeTextWindow : ""}`}
-      contentEditable="true"
-      data-type="text-window"
-      onInput={handleInput}
-      onFocus={handleFocus}
-      onMouseUp={handleMouseUp}
-    ></div>
+    <>
+      <div
+        id={id}
+        className={`${styles.TextWindow} ${isActive ? styles.activeTextWindow : ""}`}
+        contentEditable="true"
+        data-type="text-window"
+        onInput={handleInput}
+        onFocus={handleFocus}
+        onMouseUp={handleMouseUp}
+        onContextMenu={handleContextMenu}
+      ></div>
+      
+      {showFormatMenu && (
+        <div 
+          className={styles.formatMenu} 
+          style={{ 
+            position: 'absolute', 
+            top: formatMenuPosition.y, 
+            left: formatMenuPosition.x 
+          }}
+        >
+          <button onClick={() => applyFormat('bold')}>Bold</button>
+          <button onClick={() => applyFormat('italic')}>Italic</button>
+          <button onClick={() => applyFormat('underline')}>Underline</button>
+          <select onChange={(e) => applyFormat('foreColor', e.target.value)}>
+            <option value="">Text Color</option>
+            <option value="#000000">Black</option>
+            <option value="#ff0000">Red</option>
+            <option value="#0000ff">Blue</option>
+            <option value="#008000">Green</option>
+          </select>
+          <select onChange={(e) => applyFormat('fontSize', e.target.value)}>
+            <option value="">Font Size</option>
+            <option value="1">Small</option>
+            <option value="3">Normal</option>
+            <option value="5">Large</option>
+            <option value="7">X-Large</option>
+          </select>
+          <select onChange={(e) => applyFormat('fontName', e.target.value)}>
+            <option value="">Font</option>
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+          </select>
+        </div>
+      )}
+    </>
   );
 }
 

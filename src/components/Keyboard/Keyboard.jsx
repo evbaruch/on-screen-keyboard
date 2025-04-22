@@ -20,58 +20,6 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     setShowEmojiKeyboard((prev) => !prev);
   };
 
-  // Helper function to ensure cursor position doesn't jump
-  const maintainCursorPosition = (textWindow, beforeContent) => {
-    if (!textWindow) return;
-    
-    const selection = window.getSelection();
-    if (selection.rangeCount === 0) return;
-    
-    const originalRange = selection.getRangeAt(0);
-    const originalOffset = originalRange.startOffset;
-    const originalNode = originalRange.startContainer;
-    
-    // Simple case - if the node and content are unchanged, just return
-    if (textWindow.innerHTML === beforeContent) return;
-    
-    // Try to find the same relative position in the new content
-    // by looking for text nodes that contain similar content
-    let found = false;
-    let foundNode = null;
-    let foundOffset = 0;
-    
-    const findSimilarPosition = (node, originalNode, originalOffset) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (node.textContent === originalNode.textContent) {
-          foundNode = node;
-          foundOffset = originalOffset;
-          found = true;
-          return;
-        }
-      }
-      
-      if (node.childNodes && node.childNodes.length > 0) {
-        for (let i = 0; i < node.childNodes.length; i++) {
-          findSimilarPosition(node.childNodes[i], originalNode, originalOffset);
-          if (found) return;
-        }
-      }
-    };
-    
-    if (originalNode.nodeType === Node.TEXT_NODE) {
-      findSimilarPosition(textWindow, originalNode, originalOffset);
-    }
-    
-    // If we found a similar position, set the selection there
-    if (found && foundNode) {
-      const newRange = document.createRange();
-      newRange.setStart(foundNode, Math.min(foundOffset, foundNode.textContent.length));
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-  };
-
   const handleMouseDown = (id, key) => {
     if (!lastActiveTextWindow) return;
     
@@ -85,9 +33,6 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
-    // Store the content before making changes
-    const beforeContent = activeTextWindow.innerHTML;
-
     // Focus the text window to ensure it has focus for cursor positioning
     activeTextWindow.focus();
 
@@ -96,19 +41,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       key = " ";
     } else if (normalizedKey === "BACKSPACE") {
       // Handle backspace
-      const selection = window.getSelection();
-      if (selection.rangeCount === 0) return;
-      
-      const range = selection.getRangeAt(0);
-      
-      if (range.collapsed && range.startOffset > 0) {
-        // No text selected, move back one character and delete
-        range.setStart(range.startContainer, range.startOffset - 1);
-        range.deleteContents();
-      } else {
-        // Delete selected text
-        range.deleteContents();
-      }
+      document.execCommand('delete', false);
       
       // Save updated content
       const updatedContent = activeTextWindow.innerHTML;
@@ -127,40 +60,19 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       key = key.toLowerCase();
     }
 
-    // Insert text at cursor position
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const textNode = document.createTextNode(key);
-      
-      // Delete any selected text first
-      range.deleteContents();
-      
-      // Insert the new text
-      range.insertNode(textNode);
-      
-      // Move the cursor after the inserted text
-      range.setStartAfter(textNode);
-      range.collapse(true);
-      
-      // Update the selection
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      // Save the updated content
-      const updatedContent = activeTextWindow.innerHTML;
-      if (lastActivefileName) {
-        const files = loadFilesForUser(username);
-        files[lastActivefileName] = updatedContent;
-        saveFilesForUser(username, files);
-      }
-      
-      // Save cursor position
-      saveCursorPosition(lastActiveTextWindow, username);
-      
-      // Make sure the cursor stays where it should be
-      maintainCursorPosition(activeTextWindow, beforeContent);
+    // Use execCommand to insert text at the cursor position
+    document.execCommand('insertText', false, key);
+    
+    // Save the updated content
+    const updatedContent = activeTextWindow.innerHTML;
+    if (lastActivefileName) {
+      const files = loadFilesForUser(username);
+      files[lastActivefileName] = updatedContent;
+      saveFilesForUser(username, files);
     }
+    
+    // Save cursor position
+    saveCursorPosition(lastActiveTextWindow, username);
   };
 
   const saveCursorPosition = (windowId, username) => {
@@ -179,41 +91,15 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
-    // Store the content before making changes
-    const beforeContent = activeTextWindow.innerHTML;
-
     // Focus the text window
     activeTextWindow.focus();
 
-    // Create an <img> element for the emoji
-    const emojiNode = document.createElement("img");
-    emojiNode.src = emojiPath;
-    emojiNode.alt = "emoji";
-    emojiNode.style.width = "20px";
-    emojiNode.style.height = "20px";
-    emojiNode.style.display = "inline-block";
-    emojiNode.style.verticalAlign = "middle";
-
-    // Get the current selection and range
-    const selection = window.getSelection();
-    if (selection.rangeCount === 0) return;
+    // Create emoji HTML string
+    const emojiHTML = `<img src="${emojiPath}" alt="emoji" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin:0 2px;">`;
     
-    const range = selection.getRangeAt(0);
-
-    // Delete any selected text
-    range.deleteContents();
-
-    // Insert the emoji at the cursor position
-    range.insertNode(emojiNode);
-
-    // Move the cursor after the emoji
-    range.setStartAfter(emojiNode);
-    range.collapse(true);
-
-    // Update the selection
-    selection.removeAllRanges();
-    selection.addRange(range);
-
+    // Use execCommand to insert HTML - this is the most reliable cross-browser approach
+    document.execCommand('insertHTML', false, emojiHTML);
+    
     // Save the updated content
     const updatedContent = activeTextWindow.innerHTML;
     if (lastActivefileName) {
@@ -224,9 +110,6 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
 
     // Save cursor position
     saveCursorPosition(lastActiveTextWindow, username);
-    
-    // Make sure the cursor stays where it should be
-    maintainCursorPosition(activeTextWindow, beforeContent);
   };
 
   const handleMouseUp = () => {
@@ -253,9 +136,6 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       const activeTextWindow = document.getElementById(lastActiveTextWindow);
       if (!activeTextWindow) return;
       
-      // Store the content before making changes
-      const beforeContent = activeTextWindow.innerHTML;
-
       // Let the browser handle Enter, Tab and arrow keys naturally
       if (["ENTER", "ARROWLEFT", "ARROWRIGHT", "ARROWUP", "ARROWDOWN", "TAB"].includes(normalizedKey)) {
         // Just update cursor position after the operation
@@ -266,19 +146,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       }
 
       if (normalizedKey === "BACKSPACE") {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
-        
-        const range = selection.getRangeAt(0);
-        
-        if (range.collapsed && range.startOffset > 0) {
-          // No text selected, delete one character
-          range.setStart(range.startContainer, range.startOffset - 1);
-          range.deleteContents();
-        } else {
-          // Delete selected text
-          range.deleteContents();
-        }
+        document.execCommand('delete', false);
         
         // Save updated content
         const updatedContent = activeTextWindow.innerHTML;
@@ -293,26 +161,10 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
           saveCursorPosition(lastActiveTextWindow, username);
         }, 0);
         
-        // Make sure the cursor stays where it should be
-        maintainCursorPosition(activeTextWindow, beforeContent);
-        
         event.preventDefault();
       } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
-        // Insert regular text
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
-        
-        const range = selection.getRangeAt(0);
-        const textNode = document.createTextNode(event.key);
-        
-        range.deleteContents();
-        range.insertNode(textNode);
-        
-        // Move cursor after inserted text
-        range.setStartAfter(textNode);
-        range.setEndAfter(textNode);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        // Insert regular text using execCommand
+        document.execCommand('insertText', false, event.key);
         
         // Save updated content
         const updatedContent = activeTextWindow.innerHTML;
@@ -324,9 +176,6 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
         
         // Update cursor position
         saveCursorPosition(lastActiveTextWindow, username);
-        
-        // Make sure the cursor stays where it should be
-        maintainCursorPosition(activeTextWindow, beforeContent);
         
         event.preventDefault();
       }

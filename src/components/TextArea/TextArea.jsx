@@ -157,21 +157,47 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   const signText = () => {
     if (!lastActiveTextWindow) return;
     
-    const signatureText = prompt("Enter your signature:", `${username}`);
-    if (!signatureText) return;
+    // Check if text is selected
+    const selection = window.getSelection();
+    const hasSelection = selection.toString().trim().length > 0;
     
     const textWindow = document.getElementById(lastActiveTextWindow);
     if (!textWindow) return;
     
-    const currentDate = new Date().toLocaleDateString();
-    const signatureHTML = `<div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
-                            <div style="font-style: italic; color: #666;">
-                              Signed by: <strong>${signatureText}</strong> on ${currentDate}
-                            </div>
-                          </div>`;
+    const signatureText = prompt("Enter your signature:", `${username}`);
+    if (!signatureText) return;
     
-    // Append the signature to the end
-    textWindow.innerHTML += signatureHTML;
+    const currentDate = new Date().toLocaleDateString();
+    
+    if (hasSelection) {
+      // Sign the selected text
+      const range = selection.getRangeAt(0);
+      const selectedContent = range.cloneContents();
+      const wrapper = document.createElement('div');
+      wrapper.appendChild(selectedContent);
+      
+      const signedHTML = `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; background-color: #f9f9f9;">
+                           <div>${wrapper.innerHTML}</div>
+                           <div style="margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px;">
+                             <div style="font-style: italic; color: #666;">
+                               Signed by: <strong>${signatureText}</strong> on ${currentDate}
+                             </div>
+                           </div>
+                         </div>`;
+      
+      // Replace the selection with the signed content
+      document.execCommand('insertHTML', false, signedHTML);
+    } else {
+      // Sign at the end of the document
+      const signatureHTML = `<div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                              <div style="font-style: italic; color: #666;">
+                                Signed by: <strong>${signatureText}</strong> on ${currentDate}
+                              </div>
+                            </div>`;
+      
+      // Append the signature to the end
+      textWindow.innerHTML += signatureHTML;
+    }
     
     // Save the updated content
     const updatedContent = textWindow.innerHTML;
