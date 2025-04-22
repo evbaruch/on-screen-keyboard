@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./TextArea.module.css";
 import {
   loadCursorPositionsForUser,
   saveCursorPositionsForUser,
-  loadFilesForUser,
 } from "../../utils/localStorageUtils";
 
 function TextWindow({
@@ -16,8 +15,15 @@ function TextWindow({
   isActive,
   onSetActive,
 }) {
-  const [cursorPosition, setCursorPosition] = useState(null); // Track cursor position
-  const [previousFileName, setPreviousFileName] = useState(lastActiveFileName); // Track the previous file name
+  const [cursorPosition, setCursorPosition] = useState(null);
+
+  // Initialize content when component mounts or when content prop changes
+  useEffect(() => {
+    const textWindow = document.getElementById(id);
+    if (textWindow && textWindow.innerHTML !== content) {
+      textWindow.innerHTML = content;
+    }
+  }, [id, content]);
 
   const saveCursorPosition = () => {
     const selection = window.getSelection();
@@ -38,7 +44,7 @@ function TextWindow({
   const restoreCursorPosition = () => {
     const cursorPositions = loadCursorPositionsForUser(username);
     const savedPosition = cursorPositions[id];
-    if (!savedPosition) return; // Skip if no cursor position is saved
+    if (!savedPosition) return;
 
     const selection = window.getSelection();
     const range = document.createRange();
@@ -50,9 +56,8 @@ function TextWindow({
       range.setStart(node, offset);
       range.collapse(true);
     } else if (textWindow) {
-      // If no child node exists, create a text node and set the cursor at the start
       if (!textWindow.firstChild) {
-        const textNode = document.createTextNode(content || ""); // Use the current content
+        const textNode = document.createTextNode(content || "");
         textWindow.appendChild(textNode);
       }
       range.setStart(textWindow.firstChild, 0);
@@ -65,48 +70,33 @@ function TextWindow({
 
   const handleFocus = () => {
     if (!isActive) {
-      onSetActive(id); // Notify parent that this TextWindow is active
+      onSetActive();
     }
-    restoreCursorPosition(); // Restore cursor position on focus
+    restoreCursorPosition();
   };
 
   const handleMouseUp = () => {
     if (!isActive) {
-      onSetActive(id); // Ensure this TextWindow becomes active on mouse interaction
+      onSetActive();
     }
-    saveCursorPosition(); // Save the cursor position after the user releases the mouse
+    saveCursorPosition();
   };
 
   const handleInput = (e) => {
-    const updatedContent = e.target.innerHTML; // Get the updated content
-    onContentChange(updatedContent); // Notify parent of the content change
-    saveCursorPosition(); // Save the current cursor position
+    const updatedContent = e.target.innerHTML;
+    onContentChange(updatedContent);
+    saveCursorPosition();
   };
-
-  // Dynamically update the content and restore the cursor position
-  const handleContentUpdate = () => {
-    const textWindow = document.getElementById(id);
-    if (textWindow) {
-      const fileContent = loadFilesForUser(username)[lastActiveFileName || initfileName ]; // Load content for the active file
-      if (textWindow.innerHTML !== fileContent) {
-        textWindow.innerHTML = fileContent; // Set the new content
-      }
-    }
-    restoreCursorPosition(); // Restore the cursor position after updating the content
-  };
-
-  
-    handleContentUpdate(); // Update the content for the new file
 
   return (
     <div
       id={id}
-      className={styles.TextWindow}
+      className={`${styles.TextWindow} ${isActive ? styles.activeTextWindow : ""}`}
       contentEditable="true"
-      data-type="text-window" // Custom attribute to uniquely identify this div
+      data-type="text-window"
       onInput={handleInput}
       onFocus={handleFocus}
-      onMouseUp={handleMouseUp} // Update cursor position on mouse up
+      onMouseUp={handleMouseUp}
     ></div>
   );
 }

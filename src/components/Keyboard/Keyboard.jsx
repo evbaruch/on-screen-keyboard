@@ -20,18 +20,26 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     setShowEmojiKeyboard((prev) => !prev);
   };
 
+  // Get cursor position for the active text window
   const getCursorPosition = () => {
+    if (!lastActiveTextWindow) return 0;
+    
     const cursorPositions = loadCursorPositionsForUser(username);
     return cursorPositions[lastActiveTextWindow]?.offset || 0;
   };
 
+  // Update cursor position for the active text window
   const updateCursorPosition = (newPosition) => {
+    if (!lastActiveTextWindow) return;
+    
     const cursorPositions = loadCursorPositionsForUser(username);
     cursorPositions[lastActiveTextWindow] = { offset: newPosition };
     saveCursorPositionsForUser(username, cursorPositions);
   };
 
   const handleMouseDown = (id, key) => {
+    if (!lastActiveTextWindow) return;
+    
     const normalizedKey = key.toUpperCase();
 
     if (normalizedKey === "CAPSLOCK") {
@@ -43,50 +51,74 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
-    let content = activeTextWindow.textContent || "";
+    let content = activeTextWindow.innerHTML || "";
 
-    if (isCapsLockActive) {
+    // Update content based on key pressed
+    if (normalizedKey === "SPACE") {
+      key = " ";
+    } else if (normalizedKey === "BACKSPACE") {
+      if (cursorPosition > 0 && activeTextWindow.textContent.length > 0) {
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        
+        if (range.collapsed) {
+          // No text selected, just delete one character
+          range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
+          range.deleteContents();
+        } else {
+          // Delete selected text
+          range.deleteContents();
+        }
+        
+        // Get the updated content and save it
+        content = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = content;
+          saveFilesForUser(username, files);
+        }
+        
+        // Update cursor position based on current selection
+        updateCursorPosition(selection.getRangeAt(0).startOffset);
+        return;
+      }
+      return;
+    } else if (isCapsLockActive) {
       key = key.toUpperCase();
     } else {
       key = key.toLowerCase();
     }
 
-    const beforeCursor = content.slice(0, cursorPosition);
-    const afterCursor = content.slice(cursorPosition);
-    content = beforeCursor + key + afterCursor;
-
-    // Update the node size manually by setting the content
-    if (!activeTextWindow.firstChild) {
-      const textNode = document.createTextNode(content);
-      activeTextWindow.appendChild(textNode);
-    } else {
-      activeTextWindow.firstChild.textContent = content;
-    }
-
-    saveFilesForUser(username, { [lastActivefileName]: content }); // Save the updated content to local storage
-
-    const newCursorPosition = Math.min(
-      cursorPosition + key.length,
-      content.length
-    ); // Clamp the cursor position
-    updateCursorPosition(newCursorPosition);
-
+    // Insert text at cursor position
     const selection = window.getSelection();
-    const range = document.createRange();
-    const textNode = activeTextWindow.firstChild;
-
-    const validOffset = Math.min(
-      newCursorPosition,
-      textNode.textContent.length
-    ); // Ensure offset is valid
-    range.setStart(textNode, validOffset);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const textNode = document.createTextNode(key);
+      range.deleteContents();
+      range.insertNode(textNode);
+      
+      // Move cursor after inserted text
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Update cursor position
+      updateCursorPosition(range.startOffset);
+      
+      // Save updated content
+      content = activeTextWindow.innerHTML;
+      if (lastActivefileName) {
+        const files = loadFilesForUser(username);
+        files[lastActivefileName] = content;
+        saveFilesForUser(username, files);
+      }
+    }
   };
 
   const handleEmojiClick = (emojiPath) => {
-    const cursorPosition = getCursorPosition();
+    if (!lastActiveTextWindow) return;
+    
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
@@ -100,6 +132,8 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
 
     // Get the current selection and range
     const selection = window.getSelection();
+    if (selection.rangeCount === 0) return;
+    
     const range = selection.getRangeAt(0);
 
     // Insert the emoji at the cursor position
@@ -113,82 +147,115 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     selection.removeAllRanges();
     selection.addRange(range);
 
-    // Save the updated content to local storage
+    // Save the updated content
     const updatedContent = activeTextWindow.innerHTML;
-    saveFilesForUser(username, { [lastActivefileName]: updatedContent });
+    if (lastActivefileName) {
+      const files = loadFilesForUser(username);
+      files[lastActivefileName] = updatedContent;
+      saveFilesForUser(username, files);
+    }
 
-    // Update the cursor position in local storage
-    const newCursorPosition = cursorPosition + 1; // Treat emoji as a single character
-    updateCursorPosition(newCursorPosition);
+    // Update the cursor position
+    updateCursorPosition(range.startOffset);
   };
 
   const handleMouseUp = () => {
     setHighlighted([]);
   };
 
+  // Attach keyboard event listeners
   if (!window._keyboardListenersAttached) {
     window._keyboardListenersAttached = true;
 
-    // Handle physical keyboard keydown
+    // Handle physical keyboard input
     window.addEventListener("keydown", (event) => {
+      if (!lastActiveTextWindow) return;
+      
       const key = event.key === " " ? "Space" : event.key;
       const normalizedKey = key.toUpperCase();
 
+      // Handle special keys
       if (normalizedKey === "CAPSLOCK") {
         setIsCapsLockActive((prev) => !prev);
         return;
       }
 
-      const cursorPosition = getCursorPosition();
       const activeTextWindow = document.getElementById(lastActiveTextWindow);
       if (!activeTextWindow) return;
 
-      let content = activeTextWindow.textContent || "";
-
-      if (normalizedKey === "BACKSPACE") {
-        if (cursorPosition > 0) {
-          const beforeCursor = content.slice(0, cursorPosition);
-          const afterCursor = content.slice(cursorPosition);
-          const newBeforeCursor = [...beforeCursor].slice(0, -1).join("");
-          content = newBeforeCursor + afterCursor;
-
-          const newCursorPosition = newBeforeCursor.length;
-          updateCursorPosition(newCursorPosition);
-
-          activeTextWindow.textContent = content;
-
+      // Let the browser handle Enter, Tab and arrow keys naturally
+      if (["ENTER", "ARROWLEFT", "ARROWRIGHT", "ARROWUP", "ARROWDOWN", "TAB"].includes(normalizedKey)) {
+        // Just update cursor position after the operation
+        setTimeout(() => {
           const selection = window.getSelection();
-          const range = document.createRange();
-          range.setStart(
-            activeTextWindow.firstChild || activeTextWindow,
-            newCursorPosition
-          );
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      } else {
-        const beforeCursor = content.slice(0, cursorPosition);
-        const afterCursor = content.slice(cursorPosition);
-        const newContent = beforeCursor + key + afterCursor;
-
-        const newCursorPosition = cursorPosition + key.length;
-        updateCursorPosition(newCursorPosition);
-
-        activeTextWindow.textContent = newContent;
-
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.setStart(
-          activeTextWindow.firstChild || activeTextWindow,
-          newCursorPosition
-        );
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+          if (selection.rangeCount > 0) {
+            updateCursorPosition(selection.getRangeAt(0).startOffset);
+          }
+        }, 0);
+        return;
       }
 
-      event.preventDefault();
+      if (normalizedKey === "BACKSPACE") {
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        
+        if (range.collapsed && range.startOffset > 0) {
+          // No text selected, delete one character
+          range.setStart(range.startContainer, range.startOffset - 1);
+          range.deleteContents();
+        } else {
+          // Delete selected text
+          range.deleteContents();
+        }
+        
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
+        }
+        
+        // Update cursor position
+        setTimeout(() => {
+          if (selection.rangeCount > 0) {
+            updateCursorPosition(selection.getRangeAt(0).startOffset);
+          }
+        }, 0);
+        
+        event.preventDefault();
+      } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
+        // Insert regular text
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        const textNode = document.createTextNode(event.key);
+        
+        range.deleteContents();
+        range.insertNode(textNode);
+        
+        // Move cursor after inserted text
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
+        }
+        
+        // Update cursor position
+        updateCursorPosition(range.startOffset);
+        
+        event.preventDefault();
+      }
     });
 
     // Handle physical keyboard keyup
