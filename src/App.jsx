@@ -13,6 +13,8 @@ function App() {
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [lastActiveTextWindow, setLastActiveTextWindow] = useState(null); // Track the last active TextWindow
+  const [lastActivefileName, setlastActiveFileName] = useState(""); // Track the file name
+
 
   const handleLogin = (username, password) => {
     const users = loadUsersFromLocalStorage();
@@ -56,8 +58,13 @@ function App() {
             username={username}
             lastActiveTextWindow={lastActiveTextWindow}
             setLastActiveTextWindow={setLastActiveTextWindow}
+            setlastActiveFileName={setlastActiveFileName}
           />
-          <Keyboard lastActiveTextWindow={lastActiveTextWindow} />
+          <Keyboard
+            username={username}
+            lastActiveTextWindow={lastActiveTextWindow}
+            lastActivefileName={lastActivefileName}
+          />
         </>
       ) : (
         <div>

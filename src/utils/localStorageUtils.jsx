@@ -30,14 +30,35 @@ export const saveFilesForUser = (username, files) => {
   }
 };
 
+// Load cursor positions for a specific user
+export const loadCursorPositionsForUser = (username) => {
+  const users = loadUsersFromLocalStorage(); // Load all users
+  const user = users.find((u) => u.username === username); // Find the user by username
+  return user ? user.cursorPositions || {} : {}; // Return the user's cursor positions or an empty object if none exist
+};
+
+// Save cursor positions for a specific user
+export const saveCursorPositionsForUser = (username, cursorPositions) => {
+  const users = loadUsersFromLocalStorage(); // Load all users
+  const userIndex = users.findIndex((u) => u.username === username); // Find the index of the user
+
+  if (userIndex !== -1) {
+    // Update the user's cursor positions
+    users[userIndex].cursorPositions = cursorPositions;
+    saveUsersToLocalStorage(users); // Save the updated users array back to local storage
+  } else {
+    console.error(`User "${username}" does not exist. Cannot save cursor positions.`); // Log an error if the user does not exist
+  }
+};
+
 // Add a new user to local storage
 export const addUserToLocalStorage = (username, password) => {
   const users = loadUsersFromLocalStorage(); // Load all users
   if (users.find((u) => u.username === username)) {
     return "User already exists."; // Return an error message if the user already exists
   }
-  // Add the new user with an empty files object
-  users.push({ username, password, files: {} });
+  // Add the new user with an empty files object and empty cursor positions
+  users.push({ username, password, files: {}, cursorPositions: {} });
   saveUsersToLocalStorage(users); // Save the updated users array back to local storage
   return null; // Return null to indicate success
 };

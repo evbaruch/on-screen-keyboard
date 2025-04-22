@@ -1,12 +1,9 @@
 import React, { useState } from "react";
 import styles from "./TextArea.module.css";
 import TextWindow from "./TextWindow";
-import {
-  loadFilesForUser,
-  saveFilesForUser,
-} from "../../utils/localStorageUtils";
+import { loadFilesForUser, saveFilesForUser } from "../../utils/localStorageUtils";
 
-function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow }) {
+function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow ,setlastActiveFileName}) {
   const [files, setFiles] = useState(loadFilesForUser(username) || {});
   const [currentFile, setCurrentFile] = useState(null);
   const [text, setText] = useState("");
@@ -18,20 +15,23 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow }) {
       setFiles(updatedFiles);
       setCurrentFile({ name: fileName, content: text });
       saveFilesForUser(username, updatedFiles);
+      setlastActiveFileName(fileName); // Notify parent about the last active file name
     }
   };
 
   const handleFileClick = (fileName) => {
-    setCurrentFile({ name: fileName, content: files[fileName] });
-    setText(files[fileName]);
+    const fileContent = files[fileName] || ""; // Get the content of the clicked file
+    setCurrentFile({ name: fileName, content: fileContent }); // Update the current file
+    setText(fileContent); // Update the text state to reflect the new file's content
+    setlastActiveFileName(fileName); // Notify parent about the last active file name
   };
 
   const handleContentChange = (newContent) => {
-    setText(newContent);
+    setText(newContent); // Update the text state
     if (currentFile) {
       const updatedFiles = { ...files, [currentFile.name]: newContent };
       setFiles(updatedFiles);
-      saveFilesForUser(username, updatedFiles);
+      saveFilesForUser(username, updatedFiles); // Save the updated content to local storage
     }
   };
 
@@ -47,9 +47,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow }) {
           {Object.keys(files).map((fileName, index) => (
             <li
               key={index}
-              className={
-                currentFile?.name === fileName ? styles.activeFile : ""
-              }
+              className={currentFile?.name === fileName ? styles.activeFile : ""}
               onClick={() => handleFileClick(fileName)}
             >
               {fileName}
@@ -69,7 +67,8 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow }) {
         )}
         <TextWindow
           id="textWindow1"
-          content={text}
+          username={username}
+          content={text} // Dynamically update the content
           onContentChange={handleContentChange}
           isActive={lastActiveTextWindow === "textWindow1"}
           onSetActive={() => handleSetActive("textWindow1")}
