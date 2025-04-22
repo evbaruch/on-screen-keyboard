@@ -3,7 +3,7 @@ import styles from "./TextArea.module.css";
 import TextWindow from "./TextWindow";
 import { loadFilesForUser, saveFilesForUser } from "../../utils/localStorageUtils";
 
-function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow ,setlastActiveFileName}) {
+function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow , lastActiveFileName ,setlastActiveFileName}) {
   const [files, setFiles] = useState(loadFilesForUser(username) || {});
   const [currentFile, setCurrentFile] = useState(null);
   const [text, setText] = useState("");
@@ -24,6 +24,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow ,set
     setCurrentFile({ name: fileName, content: fileContent }); // Update the current file
     setText(fileContent); // Update the text state to reflect the new file's content
     setlastActiveFileName(fileName); // Notify parent about the last active file name
+    console.log("File clicked:", lastActiveFileName); // Log the clicked file name
   };
 
   const handleContentChange = (newContent) => {
@@ -67,6 +68,8 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow ,set
         )}
         <TextWindow
           id="textWindow1"
+          lastActiveFileName={lastActiveFileName}
+          initfileName={currentFile?.name || ""}
           username={username}
           content={text} // Dynamically update the content
           onContentChange={handleContentChange}

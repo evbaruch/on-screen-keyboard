@@ -58,6 +58,7 @@ function App() {
             username={username}
             lastActiveTextWindow={lastActiveTextWindow}
             setLastActiveTextWindow={setLastActiveTextWindow}
+            lastActivefileName={lastActivefileName}
             setlastActiveFileName={setlastActiveFileName}
           />
           <Keyboard

@@ -90,24 +90,36 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
-    let content = activeTextWindow.innerHTML || "";
+    // Create an <img> element for the emoji
+    const emojiNode = document.createElement("img");
+    emojiNode.src = emojiPath;
+    emojiNode.alt = "emoji";
+    emojiNode.style.width = "20px";
+    emojiNode.style.height = "20px";
+    emojiNode.style.display = "inline-block";
 
-    const emoji = `<img src="${emojiPath}" alt="emoji" style="width:20px;height:20px;" />`;
-    const beforeCursor = content.slice(0, cursorPosition);
-    const afterCursor = content.slice(cursorPosition);
-    content = beforeCursor + emoji + afterCursor;
-
-    activeTextWindow.innerHTML = content;
-
-    const newCursorPosition = cursorPosition + 1; // Treat emoji as a single character
-    updateCursorPosition(newCursorPosition);
-
+    // Get the current selection and range
     const selection = window.getSelection();
-    const range = document.createRange();
-    range.setStart(activeTextWindow, newCursorPosition);
+    const range = selection.getRangeAt(0);
+
+    // Insert the emoji at the cursor position
+    range.insertNode(emojiNode);
+
+    // Move the cursor after the emoji
+    range.setStartAfter(emojiNode);
     range.collapse(true);
+
+    // Update the selection
     selection.removeAllRanges();
     selection.addRange(range);
+
+    // Save the updated content to local storage
+    const updatedContent = activeTextWindow.innerHTML;
+    saveFilesForUser(username, { [lastActivefileName]: updatedContent });
+
+    // Update the cursor position in local storage
+    const newCursorPosition = cursorPosition + 1; // Treat emoji as a single character
+    updateCursorPosition(newCursorPosition);
   };
 
   const handleMouseUp = () => {
