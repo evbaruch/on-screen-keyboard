@@ -9,6 +9,7 @@
   border-right: 1px solid #ccc;
   padding: 10px;
   overflow-y: auto;
+  max-height: calc(100vh - 200px);
 }
 
 .fileExplorer h3 {
@@ -18,12 +19,17 @@
 .fileExplorer ul {
   list-style-type: none;
   padding: 0;
+  margin: 0;
 }
 
 .fileExplorer li {
-  padding: 5px;
+  padding: 8px;
   cursor: pointer;
   border-radius: 4px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fileExplorer li:hover {
@@ -44,8 +50,8 @@
 
 .editorToolbar {
   display: flex;
-  justify-content: flex-start;
-  padding: 10px;
+  justify-content: space-between;
+  padding: 8px;
   background-color: #f5f5f5;
   border-bottom: 1px solid #ccc;
 }
@@ -57,6 +63,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
 }
 
 .addWindowButton:hover {
@@ -64,12 +71,15 @@
 }
 
 .textWindowsContainer {
+  /* move closer to the top */
+  
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   padding: 10px;
   overflow-y: auto;
-  flex: 1;
+  flex: 2;
+  max-height: calc(71vh - 150px); /* Increased height and moved closer to top */
 }
 
 .textWindowWrapper {
@@ -81,15 +91,17 @@
   border: 1px solid #ccc;
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .textWindowHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 10px;
+  padding: 8px 10px;
   background-color: #f0f0f0;
   border-bottom: 1px solid #ddd;
+  height: 36px;
 }
 
 .fileName, .untitledFile {
@@ -98,6 +110,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 200px;
 }
 
 .untitledFile {
@@ -111,7 +124,7 @@
 }
 
 .saveButton, .closeButton {
-  padding: 2px 8px;
+  padding: 3px 8px;
   border: none;
   border-radius: 3px;
   cursor: pointer;
@@ -145,11 +158,54 @@
   line-height: 1.5;
   outline: none;
   border: none;
+  background-color: #fafafa;
+  height: calc(100% - 36px); /* Subtract header height */
+  word-break: break-word;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  resize: none; /* Disable resizing */
+  box-sizing: border-box;
 }
 
 .activeTextWindow {
   background-color: #fff;
   box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Style toolbar */
+.textFormatToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #ddd;
+}
+
+.formatButton {
+  padding: 4px 8px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.formatButton:hover {
+  background-color: #f0f0f0;
+}
+
+.fontSelect, .colorPicker, .fontSizeSelect {
+  height: 24px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* Scrollbar styling - using standard CSS */
+.TextWindow {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 /* Responsive adjustments */
@@ -167,5 +223,9 @@
   
   .textWindowWrapper {
     width: 100%;
+  }
+  
+  .fileName, .untitledFile {
+    max-width: 150px;
   }
 }

@@ -9,14 +9,23 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     { id: "textWindow1", fileName: "", content: "" }
   ]);
 
+  // Helper function to get file content
+  const getFileContent = (fileName) => {
+    return files[fileName] || "";
+  };
+
   const handleSave = (windowId) => {
     // Find the target text window
     const targetWindow = textWindows.find(window => window.id === windowId);
     if (!targetWindow) return;
 
+    // Get the content directly from the DOM
+    const textWindowElement = document.getElementById(windowId);
+    const currentContent = textWindowElement ? textWindowElement.innerHTML : targetWindow.content;
+
     // If the window already has a fileName, save directly to that file
     if (targetWindow.fileName) {
-      const updatedFiles = { ...files, [targetWindow.fileName]: targetWindow.content };
+      const updatedFiles = { ...files, [targetWindow.fileName]: currentContent };
       setFiles(updatedFiles);
       saveFilesForUser(username, updatedFiles);
     } else {
@@ -29,7 +38,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
         }
 
         // Update the files and the text window with the new file name
-        const updatedFiles = { ...files, [fileName]: targetWindow.content };
+        const updatedFiles = { ...files, [fileName]: currentContent };
         setFiles(updatedFiles);
         saveFilesForUser(username, updatedFiles);
 
@@ -44,7 +53,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   };
 
   const handleFileClick = (fileName) => {
-    const fileContent = files[fileName] || "";
+    const fileContent = getFileContent(fileName);
     
     // If we have an active window, open the file in that window
     if (lastActiveTextWindow) {
@@ -54,6 +63,12 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
           : window
       );
       setTextWindows(updatedWindows);
+      
+      // Update the DOM directly
+      const textWindowElement = document.getElementById(lastActiveTextWindow);
+      if (textWindowElement) {
+        textWindowElement.innerHTML = fileContent;
+      }
     } else if (textWindows.length > 0) {
       // If no active window but we have windows, use the first one
       const updatedWindows = textWindows.map((window, index) => 
@@ -61,6 +76,12 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
       );
       setTextWindows(updatedWindows);
       setLastActiveTextWindow(textWindows[0].id);
+      
+      // Update the DOM directly
+      const textWindowElement = document.getElementById(textWindows[0].id);
+      if (textWindowElement) {
+        textWindowElement.innerHTML = fileContent;
+      }
     }
     
     setlastActiveFileName(fileName);
@@ -101,10 +122,15 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   };
 
   const handleCloseTextWindow = (windowId) => {
+    // Get the content directly from the DOM to ensure we have the latest
+    const textWindowElement = document.getElementById(windowId);
+    const currentContent = textWindowElement ? textWindowElement.innerHTML : "";
+    
     const windowToClose = textWindows.find(window => window.id === windowId);
+    const hasUnsavedChanges = windowToClose && !windowToClose.fileName && currentContent.trim() !== "";
     
     // If window has unsaved changes, prompt to save
-    if (windowToClose && !windowToClose.fileName && windowToClose.content.trim() !== "") {
+    if (hasUnsavedChanges) {
       if (confirm("Do you want to save changes before closing?")) {
         handleSave(windowId);
       }
@@ -128,6 +154,30 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     }
   };
 
+  const signText = () => {
+    if (!lastActiveTextWindow) return;
+    
+    const signatureText = prompt("Enter your signature:", `${username}`);
+    if (!signatureText) return;
+    
+    const textWindow = document.getElementById(lastActiveTextWindow);
+    if (!textWindow) return;
+    
+    const currentDate = new Date().toLocaleDateString();
+    const signatureHTML = `<div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                            <div style="font-style: italic; color: #666;">
+                              Signed by: <strong>${signatureText}</strong> on ${currentDate}
+                            </div>
+                          </div>`;
+    
+    // Append the signature to the end
+    textWindow.innerHTML += signatureHTML;
+    
+    // Save the updated content
+    const updatedContent = textWindow.innerHTML;
+    handleContentChange(lastActiveTextWindow, updatedContent);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.fileExplorer}>
@@ -149,6 +199,9 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
         <div className={styles.editorToolbar}>
           <button className={styles.addWindowButton} onClick={handleAddTextWindow}>
             + Add Window
+          </button>
+          <button className={styles.addWindowButton} onClick={signText} style={{ backgroundColor: '#007BFF' }}>
+            Sign Text
           </button>
         </div>
         <div className={styles.textWindowsContainer}>
