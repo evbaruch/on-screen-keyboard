@@ -262,27 +262,91 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   };
 
   // Handle physical keyboard input - without useEffect
+  // Fix the duplicate keyupHandler definition (lines ~280-300)
+
+  // Handle physical keyboard input - without useEffect
   if (
     typeof window !== "undefined" &&
     !window._keyboardGlobals.listenersAttached
   ) {
     // Create handlers that capture the current state
-    // Just modify the keyup handler to check for undefined values:
+    window._keyboardGlobals.keydownHandler = (event) => {
+      if (!lastActiveTextWindow) return;
 
-    window._keyboardGlobals.keyupHandler = (event) => {
-      if (!event || !event.key) return; // Add this check
+      // Safety check for undefined event
+      if (!event || !event.key) return;
 
       const key = event.key === " " ? "Space" : event.key;
       const normalizedKey = key.toUpperCase();
 
-      if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
-        setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
+      // Handle special keys
+      if (normalizedKey === "CAPSLOCK") {
+        setIsCapsLockActive((prev) => !prev);
+        return;
       }
 
-      setHighlighted((prev) => prev.filter((id) => id !== normalizedKey));
+      const activeTextWindow = document.getElementById(lastActiveTextWindow);
+      if (!activeTextWindow) return;
+
+      // Let the browser handle Enter, Tab and arrow keys naturally
+      if (
+        [
+          "ENTER",
+          "ARROWLEFT",
+          "ARROWRIGHT",
+          "ARROWUP",
+          "ARROWDOWN",
+          "TAB",
+        ].includes(normalizedKey)
+      ) {
+        // Just update cursor position after the operation
+        setTimeout(() => {
+          saveCursorPosition(lastActiveTextWindow, username);
+        }, 0);
+        return;
+      }
+
+      if (normalizedKey === "BACKSPACE") {
+        document.execCommand("delete", false);
+
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
+        }
+
+        // Update cursor position
+        setTimeout(() => {
+          saveCursorPosition(lastActiveTextWindow, username);
+        }, 0);
+
+        event.preventDefault();
+      } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
+        // Insert regular text using execCommand
+        document.execCommand("insertText", false, event.key);
+
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
+        }
+
+        // Update cursor position
+        saveCursorPosition(lastActiveTextWindow, username);
+
+        event.preventDefault();
+      }
     };
 
+    
     window._keyboardGlobals.keyupHandler = (event) => {
+      // Safety check for undefined event or key
+      if (!event || !event.key) return;
+
       const key = event.key === " " ? "Space" : event.key;
       const normalizedKey = key.toUpperCase();
 

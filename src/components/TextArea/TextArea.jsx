@@ -288,7 +288,7 @@ function TextArea({
     handleContentChange(lastActiveTextWindow, updatedContent);
   };
 
-  // FIXED: Search functionality
+  // Search functionality
   const handleSearch = () => {
     if (!searchTerm || !lastActiveTextWindow) return;
 
