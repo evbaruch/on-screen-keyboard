@@ -25,9 +25,16 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   const [isCapsLockActive, setIsCapsLockActive] = useState(false);
   const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
   const [listenerState, setListenerState] = useState(false); // Just to track listener state
+  const [keyboardLanguage, setKeyboardLanguage] = useState("EN"); // Add keyboard language state
+  const [highlightTimeouts, setHighlightTimeouts] = useState({});
 
   const toggleEmojiKeyboard = () => {
     setShowEmojiKeyboard((prev) => !prev);
+  };
+
+  // Add language toggle function
+  const toggleLanguage = () => {
+    setKeyboardLanguage(prev => prev === "EN" ? "HE" : "EN");
   };
 
   // Improved cursor position handling function
@@ -143,13 +150,39 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     }
   };
 
-  const handleMouseDown = (id, key) => {
+  const handleMouseDown = (id, key, keyObj) => {
+    // First, add the key to highlighted array
+    setHighlighted(prev => [...prev, id]);
+    
+    // Clear any existing timeout for this key
+    if (highlightTimeouts[id]) {
+      clearTimeout(highlightTimeouts[id]);
+    }
+    
+    // Set new timeout to clear highlight after 150ms
+    const timeout = setTimeout(() => {
+      setHighlighted(prev => prev.filter(hId => hId !== id));
+    }, 150);
+    
+    // Store the timeout ID
+    setHighlightTimeouts(prev => ({...prev, [id]: timeout}));
+
     if (!lastActiveTextWindow) return;
 
     const normalizedKey = key.toUpperCase();
 
     if (normalizedKey === "CAPSLOCK") {
       setIsCapsLockActive((prev) => !prev);
+      return;
+    }
+    
+    if (normalizedKey === "SHIFT") {
+      setModifiers(prev => ({ ...prev, Shift: true }));
+      return;
+    }
+    
+    if (normalizedKey === "ALT") {
+      setModifiers(prev => ({ ...prev, Alt: true }));
       return;
     }
 
@@ -163,8 +196,10 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     restoreCursorPosition(lastActiveTextWindow, username);
 
     // Process the key
+    let keyToInsert;
+
     if (normalizedKey === "SPACE") {
-      key = " ";
+      keyToInsert = " ";
     } else if (normalizedKey === "BACKSPACE") {
       // Handle backspace
       document.execCommand("delete", false);
@@ -194,14 +229,43 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       // Save cursor position
       saveCursorPosition(lastActiveTextWindow, username);
       return;
-    } else if (isCapsLockActive) {
-      key = key.toUpperCase();
+    } else if (normalizedKey === "TAB") {
+      // Insert 4 spaces for TAB
+      document.execCommand("insertText", false, "    ");
+      
+      // Save updated content
+      const updatedContent = activeTextWindow.innerHTML;
+      if (lastActivefileName) {
+        const files = loadFilesForUser(username);
+        files[lastActivefileName] = updatedContent;
+        saveFilesForUser(username, files);
+      }
+      
+      // Save cursor position
+      saveCursorPosition(lastActiveTextWindow, username);
+      return;
     } else {
-      key = key.toLowerCase();
+      // Handle character insertion based on language and modifiers
+      if (keyboardLanguage === "HE" && keyObj && keyObj.fourth) {
+        // Use Hebrew character if available in current language
+        keyToInsert = keyObj.fourth;
+      } else if (modifiers.Shift && keyObj && keyObj.shift) {
+        // Use shift character if shift is held
+        keyToInsert = keyObj.shift;
+      } else if (modifiers.Alt && keyObj && keyObj.alt) {
+        // Use alt character if alt is held
+        keyToInsert = keyObj.alt;
+      } else if (isCapsLockActive && key.length === 1) {
+        // Apply caps lock for regular letters
+        keyToInsert = key.toUpperCase();
+      } else {
+        // Default case - use lowercase
+        keyToInsert = key.toLowerCase();
+      }
     }
 
     // Use execCommand to insert text at the cursor position
-    document.execCommand("insertText", false, key);
+    document.execCommand("insertText", false, keyToInsert);
 
     // Save the updated content
     const updatedContent = activeTextWindow.innerHTML;
@@ -257,12 +321,15 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     saveCursorPosition(lastActiveTextWindow, username);
   };
 
-  const handleMouseUp = () => {
-    setHighlighted([]);
+  const handleMouseUp = (id, key) => {
+    // Only reset modifier keys on mouse up
+    if (key.toUpperCase() === "SHIFT") {
+      setModifiers(prev => ({ ...prev, Shift: false }));
+    } else if (key.toUpperCase() === "ALT") {
+      setModifiers(prev => ({ ...prev, Alt: false }));
+    }
+    // Don't clear highlight state here - let the timeout handle it
   };
-
-  // Handle physical keyboard input - without useEffect
-  // Fix the duplicate keyupHandler definition (lines ~280-300)
 
   // Handle physical keyboard input - without useEffect
   if (
@@ -342,19 +409,20 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       }
     };
 
-    
     window._keyboardGlobals.keyupHandler = (event) => {
       // Safety check for undefined event or key
       if (!event || !event.key) return;
 
-      const key = event.key === " " ? "Space" : event.key;
-      const normalizedKey = key.toUpperCase();
+      try {
+        const key = event.key === " " ? "Space" : event.key;
+        const normalizedKey = key.toUpperCase();
 
-      if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
-        setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
+        if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
+          setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
+        }
+      } catch (error) {
+        console.log("Error in keyupHandler:", error);
       }
-
-      setHighlighted((prev) => prev.filter((id) => id !== normalizedKey));
     };
 
     // Attach the event listeners
@@ -366,11 +434,34 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     setListenerState(true);
   }
 
+  // Clean up timeouts to prevent memory leaks
+  if (typeof window !== "undefined") {
+    window.addEventListener('beforeunload', () => {
+      Object.values(highlightTimeouts).forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+    });
+  }
+
   return (
     <div className={styles.keyboardContainer}>
-      <button onClick={toggleEmojiKeyboard} className={styles.toggleButton}>
-        {showEmojiKeyboard ? "Switch to Keyboard" : "Switch to Emoji Keyboard"}
-      </button>
+      <div className={styles.keyboardControls}>
+        <button 
+          onClick={toggleEmojiKeyboard} 
+          className={styles.toggleButton}
+        >
+          {showEmojiKeyboard ? "Switch to Keyboard" : "Switch to Emoji Keyboard"}
+        </button>
+        
+        {/* Language toggle button */}
+        <button 
+          onClick={toggleLanguage}
+          className={`${styles.toggleButton} ${styles.languageButton}`}
+        >
+          {keyboardLanguage === "EN" ? "English" : "עברית"}
+        </button>
+      </div>
+      
       <div className={styles.keyboard}>
         {showEmojiKeyboard ? (
           <EmojiKeyboard onEmojiClick={handleEmojiClick} />
@@ -384,6 +475,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
               isCapsLockActive={isCapsLockActive}
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
+              keyboardLanguage={keyboardLanguage}
             />
           ))
         )}
