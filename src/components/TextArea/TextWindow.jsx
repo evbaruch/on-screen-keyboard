@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styles from "./TextArea.module.css";
 import {
   loadCursorPositionsForUser,
@@ -14,29 +14,36 @@ function TextWindow({
   onContentChange,
   isActive,
   onSetActive,
+  onClearContent,
 }) {
   const [cursorPosition, setCursorPosition] = useState(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [formatMenuPosition, setFormatMenuPosition] = useState({ x: 0, y: 0 });
+  const [undoStack, setUndoStack] = useState([]);
+  const [findText, setFindText] = useState("");
+  const [replaceText, setReplaceText] = useState("");
 
-  // Initialize content when component mounts or when content prop changes
-  useEffect(() => {
+  // Initialize content on first render
+  const initContent = () => {
     const textWindow = document.getElementById(id);
     if (textWindow && textWindow.innerHTML !== content) {
       textWindow.innerHTML = content;
     }
-  }, [id, content]);
+  };
 
-  // Improved cursor position saving function
+  // Call init content on first render
+  if (document.getElementById(id)) {
+    initContent();
+  }
+
+  // Cursor position saving function
   const saveCursorPosition = () => {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       
-      // Store both the node and offset for more accurate position restoration
       const textWindow = document.getElementById(id);
       
-      // Get the container node path for accurate restoration
       let node = range.startContainer;
       const path = [];
       
@@ -51,20 +58,19 @@ function TextWindow({
       const position = {
         path: path,
         offset: range.startOffset,
-        // Store the entire innerHTML to detect content changes
         html: textWindow.innerHTML
       };
       
       setCursorPosition(position);
 
-      // Save cursor position to the user's object in local storage
+      // Save cursor position to local storage
       const cursorPositions = loadCursorPositionsForUser(username);
       cursorPositions[id] = position;
       saveCursorPositionsForUser(username, cursorPositions);
     }
   };
 
-  // Improved function to restore cursor position
+  // Function to restore cursor position
   const restoreCursorPosition = () => {
     const cursorPositions = loadCursorPositionsForUser(username);
     const savedPosition = cursorPositions[id];
@@ -156,12 +162,71 @@ function TextWindow({
       onSetActive();
     }
     saveCursorPosition();
+    
+    // Close format menu if it's open and user clicks elsewhere
+    if (showFormatMenu) {
+      const selection = window.getSelection();
+      if (selection.toString().trim().length === 0) {
+        setShowFormatMenu(false);
+      }
+    }
   };
 
   const handleInput = (e) => {
-    const updatedContent = e.target.innerHTML;
+    const textWindow = document.getElementById(id);
+    const updatedContent = textWindow.innerHTML;
+    
+    // Add to undo stack
+    setUndoStack([...undoStack, content]);
+    
     onContentChange(updatedContent);
     saveCursorPosition();
+  };
+
+  // Listen for custom undo event from parent component
+  if (typeof document !== 'undefined' && document.getElementById(id)) {
+    const textWindow = document.getElementById(id);
+    if (textWindow && !textWindow._undoListenerAttached) {
+      textWindow._undoListenerAttached = true;
+      textWindow.addEventListener('custom:undo', () => {
+        handleUndo();
+      });
+    }
+  }
+
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      // Get the last state
+      const lastContent = undoStack[undoStack.length - 1];
+      
+      // Update the content
+      const textWindow = document.getElementById(id);
+      if (textWindow) {
+        textWindow.innerHTML = lastContent;
+      }
+      
+      // Update parent component
+      onContentChange(lastContent);
+      
+      // Remove from undo stack
+      setUndoStack(undoStack.slice(0, -1));
+      
+      // Restore cursor
+      setTimeout(restoreCursorPosition, 0);
+    }
+  };
+  
+  const handleClearContent = () => {
+    // Save current content for undo
+    const textWindow = document.getElementById(id);
+    if (textWindow) {
+      setUndoStack([...undoStack, textWindow.innerHTML]);
+      textWindow.innerHTML = "";
+      onContentChange("");
+    }
+    if (onClearContent) {
+      onClearContent();
+    }
   };
 
   const handleContextMenu = (e) => {
@@ -176,30 +241,73 @@ function TextWindow({
   };
 
   const handleClickOutside = (e) => {
+    // Manual implementation of click outside handling
     if (showFormatMenu && !e.target.closest(`.${styles.formatMenu}`)) {
       setShowFormatMenu(false);
     }
   };
 
-  // Add event listener to handle clicks outside the format menu
-  useEffect(() => {
+  // Add click handler to document
+  if (typeof document !== 'undefined') {
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showFormatMenu]);
+  }
 
   const applyFormat = (command, value = null) => {
-    document.execCommand(command, false, value);
+    // Save current state for undo
     const textWindow = document.getElementById(id);
-    const updatedContent = textWindow.innerHTML;
-    onContentChange(updatedContent);
+    if (textWindow) {
+      setUndoStack([...undoStack, textWindow.innerHTML]);
+    }
+    
+    document.execCommand(command, false, value);
+    
+    if (textWindow) {
+      const updatedContent = textWindow.innerHTML;
+      onContentChange(updatedContent);
+    }
+    
     setShowFormatMenu(false);
     
     // Ensure we save the cursor position after formatting
-    setTimeout(() => {
-      saveCursorPosition();
-    }, 0);
+    setTimeout(saveCursorPosition, 0);
+  };
+  
+  const handleFindReplace = () => {
+    try {
+      const textWindow = document.getElementById(id);
+      if (!textWindow) return;
+      
+      // Get the selected text range
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      const selectedText = selection.toString();
+      
+      // Save current state for undo
+      setUndoStack([...undoStack, textWindow.innerHTML]);
+      
+      // Create regex from the find text
+      const regex = new RegExp(findText, 'g');
+      
+      // Replace the text in the selection
+      if (selectedText) {
+        const replacedText = selectedText.replace(regex, replaceText);
+        if (replacedText !== selectedText) {
+          document.execCommand('insertText', false, replacedText);
+          
+          const updatedContent = textWindow.innerHTML;
+          onContentChange(updatedContent);
+        }
+      }
+      
+      setShowFormatMenu(false);
+      setTimeout(saveCursorPosition, 0);
+      
+    } catch (error) {
+      console.error("Error in find/replace:", error);
+      alert("Invalid regular expression pattern");
+    }
   };
 
   return (
@@ -227,6 +335,7 @@ function TextWindow({
           <button onClick={() => applyFormat('bold')}>Bold</button>
           <button onClick={() => applyFormat('italic')}>Italic</button>
           <button onClick={() => applyFormat('underline')}>Underline</button>
+          
           <select onChange={(e) => applyFormat('foreColor', e.target.value)}>
             <option value="">Text Color</option>
             <option value="#000000">Black</option>
@@ -234,6 +343,7 @@ function TextWindow({
             <option value="#0000ff">Blue</option>
             <option value="#008000">Green</option>
           </select>
+          
           <select onChange={(e) => applyFormat('fontSize', e.target.value)}>
             <option value="">Font Size</option>
             <option value="1">Small</option>
@@ -241,6 +351,7 @@ function TextWindow({
             <option value="5">Large</option>
             <option value="7">X-Large</option>
           </select>
+          
           <select onChange={(e) => applyFormat('fontName', e.target.value)}>
             <option value="">Font</option>
             <option value="Arial">Arial</option>
@@ -248,6 +359,21 @@ function TextWindow({
             <option value="Courier New">Courier New</option>
             <option value="Georgia">Georgia</option>
           </select>
+          
+          <label>Find & Replace (RegEx)</label>
+          <input 
+            type="text" 
+            placeholder="Find pattern" 
+            value={findText} 
+            onChange={(e) => setFindText(e.target.value)}
+          />
+          <input 
+            type="text" 
+            placeholder="Replace with" 
+            value={replaceText} 
+            onChange={(e) => setReplaceText(e.target.value)}
+          />
+          <button onClick={handleFindReplace}>Replace</button>
         </div>
       )}
     </>

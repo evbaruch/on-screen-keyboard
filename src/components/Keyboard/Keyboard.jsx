@@ -170,6 +170,20 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       // Save cursor position
       saveCursorPosition(lastActiveTextWindow, username);
       return;
+    } else if (normalizedKey === "ENTER") {
+      document.execCommand('insertHTML', false, '<br>');
+      
+      // Save updated content
+      const updatedContent = activeTextWindow.innerHTML;
+      if (lastActivefileName) {
+        const files = loadFilesForUser(username);
+        files[lastActivefileName] = updatedContent;
+        saveFilesForUser(username, files);
+      }
+      
+      // Save cursor position
+      saveCursorPosition(lastActiveTextWindow, username);
+      return;
     } else if (isCapsLockActive) {
       key = key.toUpperCase();
     } else {

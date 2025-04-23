@@ -8,7 +8,10 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   const [textWindows, setTextWindows] = useState([
     { id: "textWindow1", fileName: "", content: "" }
   ]);
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentSearchResults, setCurrentSearchResults] = useState([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
+  
   // Helper function to get file content
   const getFileContent = (fileName) => {
     return files[fileName] || "";
@@ -28,6 +31,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
       const updatedFiles = { ...files, [targetWindow.fileName]: currentContent };
       setFiles(updatedFiles);
       saveFilesForUser(username, updatedFiles);
+      alert(`File '${targetWindow.fileName}' saved successfully!`);
     } else {
       // If no fileName, prompt for one
       const fileName = prompt("Enter a name for the file:", "Untitled.txt");
@@ -48,6 +52,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
         );
         setTextWindows(updatedWindows);
         setlastActiveFileName(fileName);
+        alert(`File '${fileName}' saved successfully!`);
       }
     }
   };
@@ -154,6 +159,27 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     }
   };
 
+  const handleDeleteAll = (windowId) => {
+    if (confirm("Are you sure you want to delete all content in this window?")) {
+      const textWindowElement = document.getElementById(windowId);
+      if (textWindowElement) {
+        textWindowElement.innerHTML = "";
+        handleContentChange(windowId, "");
+      }
+    }
+  };
+
+  const handleUndo = (windowId) => {
+    // The actual undo logic is handled within the TextWindow component
+    // This is just a passthrough for the button in the TextArea component
+    const textWindowElement = document.getElementById(windowId);
+    if (textWindowElement) {
+      // We dispatch a custom event to the TextWindow
+      const undoEvent = new CustomEvent('custom:undo');
+      textWindowElement.dispatchEvent(undoEvent);
+    }
+  };
+
   const signText = () => {
     if (!lastActiveTextWindow) return;
     
@@ -204,6 +230,154 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     handleContentChange(lastActiveTextWindow, updatedContent);
   };
 
+  // Search functionality
+  const handleSearch = () => {
+    if (!searchTerm || !lastActiveTextWindow) return;
+
+    const textWindow = document.getElementById(lastActiveTextWindow);
+    if (!textWindow) return;
+
+    try {
+      // Create a regex from the search term
+      const regex = new RegExp(searchTerm, 'gi');
+      const content = textWindow.innerHTML;
+      
+      // Clear any previous highlights
+      clearSearchHighlights(textWindow);
+      
+      // Find all matches
+      const matches = [];
+      let match;
+      
+      // Use a temporary div to parse HTML content as text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const textContent = tempDiv.textContent;
+      
+      while ((match = regex.exec(textContent)) !== null) {
+        matches.push({
+          index: match.index,
+          length: match[0].length
+        });
+      }
+      
+      setCurrentSearchResults(matches);
+      setCurrentResultIndex(matches.length > 0 ? 0 : -1);
+      
+      if (matches.length > 0) {
+        highlightSearchResult(textWindow, matches[0]);
+      } else {
+        alert("No matches found");
+      }
+    } catch (e) {
+      console.error("Search error:", e);
+      alert("Invalid search pattern");
+    }
+  };
+
+  const clearSearchHighlights = (textWindow) => {
+    // Remove all previous search highlights
+    const highlightElements = textWindow.querySelectorAll('.search-highlight');
+    highlightElements.forEach(el => {
+      const parent = el.parentNode;
+      if (parent) {
+        while (el.firstChild) {
+          parent.insertBefore(el.firstChild, el);
+        }
+        parent.removeChild(el);
+      }
+    });
+  };
+
+  const highlightSearchResult = (textWindow, result) => {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    
+    // First create a tree walker to find the text node that contains our match
+    const walker = document.createTreeWalker(
+      textWindow,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    let charCount = 0;
+    let node = walker.nextNode();
+    
+    // Find the text node that contains the match
+    while (node) {
+      const nodeLength = node.nodeValue.length;
+      if (charCount + nodeLength > result.index) {
+        // This node contains our match
+        const startOffset = result.index - charCount;
+        const endOffset = Math.min(startOffset + result.length, nodeLength);
+        
+        // Set the range to our match
+        range.setStart(node, startOffset);
+        range.setEnd(node, endOffset);
+        
+        // Clear any existing selection
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Create a span to highlight the selection
+        const highlightSpan = document.createElement('span');
+        highlightSpan.className = 'search-highlight';
+        highlightSpan.style.backgroundColor = 'yellow';
+        highlightSpan.style.color = 'black';
+        
+        // Replace selection with highlighted span
+        range.surroundContents(highlightSpan);
+        
+        // Ensure the highlighted text is visible
+        highlightSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        break;
+      }
+      
+      charCount += nodeLength;
+      node = walker.nextNode();
+    }
+  };
+
+  const navigateSearchResults = (direction) => {
+    if (currentSearchResults.length === 0) return;
+    
+    const textWindow = document.getElementById(lastActiveTextWindow);
+    if (!textWindow) return;
+    
+    clearSearchHighlights(textWindow);
+    
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = (currentResultIndex + 1) % currentSearchResults.length;
+    } else {
+      newIndex = (currentResultIndex - 1 + currentSearchResults.length) % currentSearchResults.length;
+    }
+    
+    setCurrentResultIndex(newIndex);
+    highlightSearchResult(textWindow, currentSearchResults[newIndex]);
+  };
+
+  // Filter text windows based on search query
+  const filteredTextWindows = textWindows.filter(window => {
+    if (!searchTerm) return true;
+    
+    try {
+      const regex = new RegExp(searchTerm, 'i');
+      return (
+        (window.fileName && regex.test(window.fileName)) || 
+        regex.test(window.content)
+      );
+    } catch (e) {
+      // If regex is invalid, fallback to simple includes search
+      return (
+        (window.fileName && window.fileName.includes(searchTerm)) || 
+        window.content.includes(searchTerm)
+      );
+    }
+  });
+
   return (
     <div className={styles.container}>
       <div className={styles.fileExplorer}>
@@ -226,12 +400,47 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
           <button className={styles.addWindowButton} onClick={handleAddTextWindow}>
             + Add Window
           </button>
-          <button className={styles.addWindowButton} onClick={signText} style={{ backgroundColor: '#007BFF' }}>
+          <button className={styles.signButton} onClick={signText}>
             Sign Text
           </button>
+          
+          {/* Search functionality */}
+          <div className={styles.searchContainer}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search text (RegEx)..."
+              className={styles.searchInput}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <button onClick={handleSearch} className={styles.searchButton}>
+              Search
+            </button>
+            {currentSearchResults.length > 0 && (
+              <>
+                <span className={styles.searchResults}>
+                  {currentResultIndex + 1} of {currentSearchResults.length}
+                </span>
+                <button 
+                  onClick={() => navigateSearchResults('prev')}
+                  className={styles.navButton}
+                >
+                  ▲
+                </button>
+                <button 
+                  onClick={() => navigateSearchResults('next')}
+                  className={styles.navButton}
+                >
+                  ▼
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
         <div className={styles.textWindowsContainer}>
-          {textWindows.map((window) => (
+          {filteredTextWindows.map((window) => (
             <div key={window.id} className={styles.textWindowWrapper}>
               <div className={styles.textWindowHeader}>
                 {window.fileName ? (
@@ -243,12 +452,28 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
                   <button 
                     className={styles.saveButton} 
                     onClick={() => handleSave(window.id)}
+                    title="Save"
                   >
                     Save
                   </button>
                   <button 
+                    className={styles.undoButton}
+                    onClick={() => handleUndo(window.id)}
+                    title="Undo"
+                  >
+                    ↩
+                  </button>
+                  <button 
+                    className={styles.deleteButton}
+                    onClick={() => handleDeleteAll(window.id)}
+                    title="Delete All Content"
+                  >
+                    🗑️
+                  </button>
+                  <button 
                     className={styles.closeButton} 
                     onClick={() => handleCloseTextWindow(window.id)}
+                    title="Close"
                   >
                     ✕
                   </button>
@@ -263,6 +488,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
                 onContentChange={(newContent) => handleContentChange(window.id, newContent)}
                 isActive={lastActiveTextWindow === window.id}
                 onSetActive={() => handleSetActive(window.id)}
+                onClearContent={() => handleDeleteAll(window.id)}
               />
             </div>
           ))}
