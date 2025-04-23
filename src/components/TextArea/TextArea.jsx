@@ -11,12 +11,25 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   const [searchTerm, setSearchTerm] = useState("");
   const [currentSearchResults, setCurrentSearchResults] = useState([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
+  const [isKeypressListenerAttached, setIsKeypressListenerAttached] = useState(false);
   
   // Helper function to get file content
   const getFileContent = (fileName) => {
     return files[fileName] || "";
   };
 
+  // Attach key event listener for search shortcut (Ctrl+F)
+  if (!isKeypressListenerAttached && typeof document !== 'undefined') {
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        // Focus the search input
+        document.querySelector(`.${styles.searchInput}`)?.focus();
+      }
+    });
+    setIsKeypressListenerAttached(true);
+  }
+  
   const handleSave = (windowId) => {
     // Find the target text window
     const targetWindow = textWindows.find(window => window.id === windowId);
@@ -73,6 +86,11 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
       const textWindowElement = document.getElementById(lastActiveTextWindow);
       if (textWindowElement) {
         textWindowElement.innerHTML = fileContent;
+        
+        // Clear any previous search results when opening a new file
+        clearSearchHighlights(textWindowElement);
+        setCurrentSearchResults([]);
+        setCurrentResultIndex(-1);
       }
     } else if (textWindows.length > 0) {
       // If no active window but we have windows, use the first one
@@ -108,6 +126,14 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     });
     
     setTextWindows(updatedWindows);
+    
+    // Clear search results when content changes
+    const textWindowElement = document.getElementById(windowId);
+    if (textWindowElement && currentSearchResults.length > 0) {
+      clearSearchHighlights(textWindowElement);
+      setCurrentSearchResults([]);
+      setCurrentResultIndex(-1);
+    }
   };
 
   const handleSetActive = (id) => {
@@ -170,11 +196,9 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   };
 
   const handleUndo = (windowId) => {
-    // The actual undo logic is handled within the TextWindow component
-    // This is just a passthrough for the button in the TextArea component
+    // Dispatch a custom undo event to the TextWindow
     const textWindowElement = document.getElementById(windowId);
     if (textWindowElement) {
-      // We dispatch a custom event to the TextWindow
       const undoEvent = new CustomEvent('custom:undo');
       textWindowElement.dispatchEvent(undoEvent);
     }
@@ -230,7 +254,7 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     handleContentChange(lastActiveTextWindow, updatedContent);
   };
 
-  // Search functionality
+  // FIXED: Search functionality
   const handleSearch = () => {
     if (!searchTerm || !lastActiveTextWindow) return;
 
@@ -238,35 +262,42 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     if (!textWindow) return;
 
     try {
-      // Create a regex from the search term
-      const regex = new RegExp(searchTerm, 'gi');
-      const content = textWindow.innerHTML;
-      
       // Clear any previous highlights
       clearSearchHighlights(textWindow);
+
+      // Create a regex from the search term
+      const regex = new RegExp(searchTerm, 'gi');
+      
+      // Get text content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = textWindow.innerHTML;
+      const textContent = tempDiv.textContent;
       
       // Find all matches
       const matches = [];
       let match;
       
-      // Use a temporary div to parse HTML content as text
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = content;
-      const textContent = tempDiv.textContent;
-      
       while ((match = regex.exec(textContent)) !== null) {
         matches.push({
           index: match.index,
-          length: match[0].length
+          length: match[0].length,
+          text: match[0]
         });
       }
       
+      // Update search results
       setCurrentSearchResults(matches);
-      setCurrentResultIndex(matches.length > 0 ? 0 : -1);
       
       if (matches.length > 0) {
+        setCurrentResultIndex(0);
         highlightSearchResult(textWindow, matches[0]);
+        // Make sure the highlighted element is visible
+        const firstHighlight = textWindow.querySelector('.search-highlight');
+        if (firstHighlight) {
+          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       } else {
+        setCurrentResultIndex(-1);
         alert("No matches found");
       }
     } catch (e) {
@@ -276,24 +307,37 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
   };
 
   const clearSearchHighlights = (textWindow) => {
-    // Remove all previous search highlights
+    // First store the current cursor position
+    const selection = window.getSelection();
+    let savedRange = null;
+    
+    if (selection.rangeCount > 0) {
+      savedRange = selection.getRangeAt(0).cloneRange();
+    }
+    
+    // Remove all highlights
     const highlightElements = textWindow.querySelectorAll('.search-highlight');
     highlightElements.forEach(el => {
       const parent = el.parentNode;
       if (parent) {
-        while (el.firstChild) {
-          parent.insertBefore(el.firstChild, el);
-        }
-        parent.removeChild(el);
+        // Replace highlight span with its text content
+        const textNode = document.createTextNode(el.textContent);
+        parent.replaceChild(textNode, el);
       }
     });
+    
+    // Restore cursor position
+    if (savedRange) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
+    }
   };
 
   const highlightSearchResult = (textWindow, result) => {
-    const selection = window.getSelection();
-    const range = document.createRange();
+    // First clear all existing highlights
+    clearSearchHighlights(textWindow);
     
-    // First create a tree walker to find the text node that contains our match
+    // Then find and highlight the specific result
     const walker = document.createTreeWalker(
       textWindow,
       NodeFilter.SHOW_TEXT,
@@ -302,41 +346,37 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     );
     
     let charCount = 0;
-    let node = walker.nextNode();
+    let node;
     
-    // Find the text node that contains the match
-    while (node) {
+    // Find the text node containing this match
+    while ((node = walker.nextNode())) {
       const nodeLength = node.nodeValue.length;
-      if (charCount + nodeLength > result.index) {
+      
+      if (charCount <= result.index && result.index < charCount + nodeLength) {
         // This node contains our match
         const startOffset = result.index - charCount;
         const endOffset = Math.min(startOffset + result.length, nodeLength);
         
-        // Set the range to our match
+        // Create range for the match
+        const range = document.createRange();
         range.setStart(node, startOffset);
         range.setEnd(node, endOffset);
         
-        // Clear any existing selection
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // Create a span to highlight the selection
+        // Create highlight span
         const highlightSpan = document.createElement('span');
         highlightSpan.className = 'search-highlight';
         highlightSpan.style.backgroundColor = 'yellow';
         highlightSpan.style.color = 'black';
         
-        // Replace selection with highlighted span
+        // Wrap the matched text with the highlight span
         range.surroundContents(highlightSpan);
         
-        // Ensure the highlighted text is visible
+        // Ensure it's visible
         highlightSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        break;
+        return;
       }
       
       charCount += nodeLength;
-      node = walker.nextNode();
     }
   };
 
@@ -345,8 +385,6 @@ function TextArea({ username, lastActiveTextWindow, setLastActiveTextWindow, las
     
     const textWindow = document.getElementById(lastActiveTextWindow);
     if (!textWindow) return;
-    
-    clearSearchHighlights(textWindow);
     
     let newIndex;
     if (direction === 'next') {

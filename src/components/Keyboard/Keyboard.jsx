@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styles from "./keyboard.module.css";
 import KeyboardRow from "./KeyboardRow";
 import keyboardLayout from "./KeyboardLayout";
@@ -10,11 +10,21 @@ import {
   loadFilesForUser,
 } from "../../utils/localStorageUtils";
 
+// Global flag to ensure listeners are only attached once
+if (typeof window !== 'undefined' && !window._keyboardGlobals) {
+  window._keyboardGlobals = {
+    listenersAttached: false,
+    keydownHandler: null,
+    keyupHandler: null
+  };
+}
+
 function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   const [highlighted, setHighlighted] = useState([]);
   const [modifiers, setModifiers] = useState({ Shift: false, Alt: false });
   const [isCapsLockActive, setIsCapsLockActive] = useState(false);
   const [showEmojiKeyboard, setShowEmojiKeyboard] = useState(false);
+  const [listenerState, setListenerState] = useState(false); // Just to track listener state
 
   const toggleEmojiKeyboard = () => {
     setShowEmojiKeyboard((prev) => !prev);
@@ -251,85 +261,88 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     setHighlighted([]);
   };
 
-  useEffect(() => {
-    // One-time setup for keyboard event listeners
-    if (!window._keyboardListenersAttached) {
-      window._keyboardListenersAttached = true;
+  // Handle physical keyboard input - without useEffect
+  if (typeof window !== 'undefined' && !window._keyboardGlobals.listenersAttached) {
+    // Create handlers that capture the current state
+    window._keyboardGlobals.keydownHandler = (event) => {
+      if (!lastActiveTextWindow) return;
+      
+      const key = event.key === " " ? "Space" : event.key;
+      const normalizedKey = key.toUpperCase();
 
-      // Handle physical keyboard input
-      window.addEventListener("keydown", (event) => {
-        if (!lastActiveTextWindow) return;
-        
-        const key = event.key === " " ? "Space" : event.key;
-        const normalizedKey = key.toUpperCase();
+      // Handle special keys
+      if (normalizedKey === "CAPSLOCK") {
+        setIsCapsLockActive(prev => !prev);
+        return;
+      }
 
-        // Handle special keys
-        if (normalizedKey === "CAPSLOCK") {
-          setIsCapsLockActive((prev) => !prev);
-          return;
-        }
-
-        const activeTextWindow = document.getElementById(lastActiveTextWindow);
-        if (!activeTextWindow) return;
-        
-        // Let the browser handle Enter, Tab and arrow keys naturally
-        if (["ENTER", "ARROWLEFT", "ARROWRIGHT", "ARROWUP", "ARROWDOWN", "TAB"].includes(normalizedKey)) {
-          // Just update cursor position after the operation
-          setTimeout(() => {
-            saveCursorPosition(lastActiveTextWindow, username);
-          }, 0);
-          return;
-        }
-
-        if (normalizedKey === "BACKSPACE") {
-          document.execCommand('delete', false);
-          
-          // Save updated content
-          const updatedContent = activeTextWindow.innerHTML;
-          if (lastActivefileName) {
-            const files = loadFilesForUser(username);
-            files[lastActivefileName] = updatedContent;
-            saveFilesForUser(username, files);
-          }
-          
-          // Update cursor position
-          setTimeout(() => {
-            saveCursorPosition(lastActiveTextWindow, username);
-          }, 0);
-          
-          event.preventDefault();
-        } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
-          // Insert regular text using execCommand
-          document.execCommand('insertText', false, event.key);
-          
-          // Save updated content
-          const updatedContent = activeTextWindow.innerHTML;
-          if (lastActivefileName) {
-            const files = loadFilesForUser(username);
-            files[lastActivefileName] = updatedContent;
-            saveFilesForUser(username, files);
-          }
-          
-          // Update cursor position
+      const activeTextWindow = document.getElementById(lastActiveTextWindow);
+      if (!activeTextWindow) return;
+      
+      // Let the browser handle Enter, Tab and arrow keys naturally
+      if (["ENTER", "ARROWLEFT", "ARROWRIGHT", "ARROWUP", "ARROWDOWN", "TAB"].includes(normalizedKey)) {
+        // Just update cursor position after the operation
+        setTimeout(() => {
           saveCursorPosition(lastActiveTextWindow, username);
-          
-          event.preventDefault();
+        }, 0);
+        return;
+      }
+
+      if (normalizedKey === "BACKSPACE") {
+        document.execCommand('delete', false);
+        
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
         }
-      });
-
-      // Handle physical keyboard keyup
-      window.addEventListener("keyup", (event) => {
-        const key = event.key === " " ? "Space" : event.key;
-        const normalizedKey = key.toUpperCase();
-
-        if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
-          setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
+        
+        // Update cursor position
+        setTimeout(() => {
+          saveCursorPosition(lastActiveTextWindow, username);
+        }, 0);
+        
+        event.preventDefault();
+      } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
+        // Insert regular text using execCommand
+        document.execCommand('insertText', false, event.key);
+        
+        // Save updated content
+        const updatedContent = activeTextWindow.innerHTML;
+        if (lastActivefileName) {
+          const files = loadFilesForUser(username);
+          files[lastActivefileName] = updatedContent;
+          saveFilesForUser(username, files);
         }
+        
+        // Update cursor position
+        saveCursorPosition(lastActiveTextWindow, username);
+        
+        event.preventDefault();
+      }
+    };
 
-        setHighlighted((prev) => prev.filter((id) => id !== normalizedKey));
-      });
-    }
-  }, [lastActiveTextWindow, lastActivefileName, username]);
+    window._keyboardGlobals.keyupHandler = (event) => {
+      const key = event.key === " " ? "Space" : event.key;
+      const normalizedKey = key.toUpperCase();
+
+      if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
+        setModifiers(prev => ({ ...prev, [normalizedKey]: false }));
+      }
+
+      setHighlighted(prev => prev.filter(id => id !== normalizedKey));
+    };
+
+    // Attach the event listeners
+    window.addEventListener("keydown", window._keyboardGlobals.keydownHandler);
+    window.addEventListener("keyup", window._keyboardGlobals.keyupHandler);
+    
+    // Mark listeners as attached
+    window._keyboardGlobals.listenersAttached = true;
+    setListenerState(true);
+  }
 
   return (
     <div className={styles.keyboardContainer}>

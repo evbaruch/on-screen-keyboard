@@ -28,6 +28,12 @@ function TextWindow({
     const textWindow = document.getElementById(id);
     if (textWindow && textWindow.innerHTML !== content) {
       textWindow.innerHTML = content;
+      
+      // Setup custom event listener for undo
+      if (!textWindow._undoListenerAttached) {
+        textWindow._undoListenerAttached = true;
+        textWindow.addEventListener('custom:undo', handleUndo);
+      }
     }
   };
 
@@ -177,22 +183,11 @@ function TextWindow({
     const updatedContent = textWindow.innerHTML;
     
     // Add to undo stack
-    setUndoStack([...undoStack, content]);
+    setUndoStack(prevStack => [...prevStack, content]);
     
     onContentChange(updatedContent);
     saveCursorPosition();
   };
-
-  // Listen for custom undo event from parent component
-  if (typeof document !== 'undefined' && document.getElementById(id)) {
-    const textWindow = document.getElementById(id);
-    if (textWindow && !textWindow._undoListenerAttached) {
-      textWindow._undoListenerAttached = true;
-      textWindow.addEventListener('custom:undo', () => {
-        handleUndo();
-      });
-    }
-  }
 
   const handleUndo = () => {
     if (undoStack.length > 0) {
@@ -209,7 +204,7 @@ function TextWindow({
       onContentChange(lastContent);
       
       // Remove from undo stack
-      setUndoStack(undoStack.slice(0, -1));
+      setUndoStack(prevStack => prevStack.slice(0, -1));
       
       // Restore cursor
       setTimeout(restoreCursorPosition, 0);
@@ -220,7 +215,7 @@ function TextWindow({
     // Save current content for undo
     const textWindow = document.getElementById(id);
     if (textWindow) {
-      setUndoStack([...undoStack, textWindow.innerHTML]);
+      setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
       textWindow.innerHTML = "";
       onContentChange("");
     }
@@ -240,23 +235,11 @@ function TextWindow({
     }
   };
 
-  const handleClickOutside = (e) => {
-    // Manual implementation of click outside handling
-    if (showFormatMenu && !e.target.closest(`.${styles.formatMenu}`)) {
-      setShowFormatMenu(false);
-    }
-  };
-
-  // Add click handler to document
-  if (typeof document !== 'undefined') {
-    document.addEventListener('mousedown', handleClickOutside);
-  }
-
   const applyFormat = (command, value = null) => {
     // Save current state for undo
     const textWindow = document.getElementById(id);
     if (textWindow) {
-      setUndoStack([...undoStack, textWindow.innerHTML]);
+      setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
     }
     
     document.execCommand(command, false, value);
@@ -274,31 +257,101 @@ function TextWindow({
   
   const handleFindReplace = () => {
     try {
+      if (!findText) return;
+      
       const textWindow = document.getElementById(id);
       if (!textWindow) return;
       
-      // Get the selected text range
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-      
-      const range = selection.getRangeAt(0);
-      const selectedText = selection.toString();
-      
       // Save current state for undo
-      setUndoStack([...undoStack, textWindow.innerHTML]);
+      setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
+      
+      const content = textWindow.innerHTML;
       
       // Create regex from the find text
       const regex = new RegExp(findText, 'g');
       
-      // Replace the text in the selection
-      if (selectedText) {
+      // Get the text content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const textContent = tempDiv.textContent;
+      
+      // Find all matches
+      let match;
+      const matches = [];
+      
+      while ((match = regex.exec(textContent)) !== null) {
+        matches.push({
+          index: match.index,
+          length: match[0].length,
+          text: match[0]
+        });
+      }
+      
+      if (matches.length === 0) {
+        alert("No matches found");
+        return;
+      }
+      
+      // Check if text is selected - if so, only replace in selection
+      const selection = window.getSelection();
+      const selectedText = selection.toString().trim();
+      
+      if (selectedText.length > 0) {
+        // Replace only in selection
         const replacedText = selectedText.replace(regex, replaceText);
         if (replacedText !== selectedText) {
           document.execCommand('insertText', false, replacedText);
           
           const updatedContent = textWindow.innerHTML;
           onContentChange(updatedContent);
+          alert(`Replaced in selection: ${selectedText.match(regex).length} occurrences`);
+        } else {
+          alert("No matches found in selection");
         }
+      } else {
+        // Replace in entire content with DOM manipulation
+        let updatedHTML = content;
+        let offset = 0;
+        
+        // Process matches in reverse order to avoid offset changes
+        for (let i = matches.length - 1; i >= 0; i--) {
+          const match = matches[i];
+          const walker = document.createTreeWalker(
+            textWindow,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+          
+          let node;
+          let charCount = 0;
+          
+          // Find the node containing the match
+          while ((node = walker.nextNode())) {
+            const nodeLength = node.nodeValue.length;
+            if (charCount + nodeLength > match.index) {
+              // This node contains our match
+              const startOffset = match.index - charCount;
+              const endOffset = Math.min(startOffset + match.length, nodeLength);
+              
+              // Calculate the position in the HTML string
+              const nodeHTML = node.nodeValue;
+              const beforeText = nodeHTML.substring(0, startOffset);
+              const matchText = nodeHTML.substring(startOffset, endOffset);
+              const afterText = nodeHTML.substring(endOffset);
+              
+              // Replace the text in this node
+              node.nodeValue = beforeText + replaceText + afterText;
+              break;
+            }
+            charCount += nodeLength;
+          }
+        }
+        
+        // Update content
+        const finalContent = textWindow.innerHTML;
+        onContentChange(finalContent);
+        alert(`Replaced ${matches.length} occurrences`);
       }
       
       setShowFormatMenu(false);
@@ -309,6 +362,13 @@ function TextWindow({
       alert("Invalid regular expression pattern");
     }
   };
+
+  // Handle click outside format menu
+  document.addEventListener('mousedown', (e) => {
+    if (showFormatMenu && !e.target.closest(`.${styles.formatMenu}`)) {
+      setShowFormatMenu(false);
+    }
+  });
 
   return (
     <>
@@ -373,7 +433,7 @@ function TextWindow({
             value={replaceText} 
             onChange={(e) => setReplaceText(e.target.value)}
           />
-          <button onClick={handleFindReplace}>Replace</button>
+          <button onClick={handleFindReplace}>Replace All</button>
         </div>
       )}
     </>
