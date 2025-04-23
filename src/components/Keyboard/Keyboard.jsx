@@ -11,11 +11,11 @@ import {
 } from "../../utils/localStorageUtils";
 
 // Global flag to ensure listeners are only attached once
-if (typeof window !== 'undefined' && !window._keyboardGlobals) {
+if (typeof window !== "undefined" && !window._keyboardGlobals) {
   window._keyboardGlobals = {
     listenersAttached: false,
     keydownHandler: null,
-    keyupHandler: null
+    keyupHandler: null,
   };
 }
 
@@ -35,15 +35,15 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      
+
       // Store both the node and offset for more accurate position restoration
       const cursorPositions = loadCursorPositionsForUser(username);
-      
+
       // Get the container node path for accurate restoration
       let node = range.startContainer;
       const textWindow = document.getElementById(windowId);
       const path = [];
-      
+
       // Get path from node to text window
       while (node !== textWindow && node.parentNode) {
         const parent = node.parentNode;
@@ -51,14 +51,14 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
         path.unshift(children.indexOf(node));
         node = parent;
       }
-      
+
       cursorPositions[windowId] = {
         path: path,
         offset: range.startOffset,
         // Store the entire innerHTML to detect content changes
-        html: textWindow.innerHTML
+        html: textWindow.innerHTML,
       };
-      
+
       saveCursorPositionsForUser(username, cursorPositions);
     }
   };
@@ -68,14 +68,14 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     const cursorPositions = loadCursorPositionsForUser(username);
     const savedPosition = cursorPositions[windowId];
     if (!savedPosition) return;
-    
+
     const textWindow = document.getElementById(windowId);
     if (!textWindow) return;
-    
+
     try {
       const selection = window.getSelection();
       const range = document.createRange();
-      
+
       // If HTML has changed significantly, position at the end
       if (savedPosition.html && textWindow.innerHTML !== savedPosition.html) {
         // Position cursor at the end
@@ -108,7 +108,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
             break;
           }
         }
-        
+
         // Set position within the final node
         if (node.nodeType === Node.TEXT_NODE) {
           const offset = Math.min(savedPosition.offset, node.length);
@@ -117,7 +117,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
           range.setStart(node, 0);
         }
       }
-      
+
       range.collapse(true);
       selection.removeAllRanges();
       selection.addRange(range);
@@ -126,7 +126,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       // Fallback: place cursor at end
       const selection = window.getSelection();
       const range = document.createRange();
-      
+
       if (textWindow.lastChild) {
         if (textWindow.lastChild.nodeType === Node.TEXT_NODE) {
           range.setStart(textWindow.lastChild, textWindow.lastChild.length);
@@ -136,7 +136,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       } else {
         range.setStart(textWindow, 0);
       }
-      
+
       range.collapse(true);
       selection.removeAllRanges();
       selection.addRange(range);
@@ -145,7 +145,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
 
   const handleMouseDown = (id, key) => {
     if (!lastActiveTextWindow) return;
-    
+
     const normalizedKey = key.toUpperCase();
 
     if (normalizedKey === "CAPSLOCK") {
@@ -158,7 +158,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
 
     // Focus the text window to ensure it has focus for cursor positioning
     activeTextWindow.focus();
-    
+
     // Restore cursor position before inserting text
     restoreCursorPosition(lastActiveTextWindow, username);
 
@@ -167,8 +167,8 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       key = " ";
     } else if (normalizedKey === "BACKSPACE") {
       // Handle backspace
-      document.execCommand('delete', false);
-      
+      document.execCommand("delete", false);
+
       // Save updated content
       const updatedContent = activeTextWindow.innerHTML;
       if (lastActivefileName) {
@@ -176,13 +176,13 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
         files[lastActivefileName] = updatedContent;
         saveFilesForUser(username, files);
       }
-      
+
       // Save cursor position
       saveCursorPosition(lastActiveTextWindow, username);
       return;
     } else if (normalizedKey === "ENTER") {
-      document.execCommand('insertHTML', false, '<br>');
-      
+      document.execCommand("insertHTML", false, "<br>");
+
       // Save updated content
       const updatedContent = activeTextWindow.innerHTML;
       if (lastActivefileName) {
@@ -190,7 +190,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
         files[lastActivefileName] = updatedContent;
         saveFilesForUser(username, files);
       }
-      
+
       // Save cursor position
       saveCursorPosition(lastActiveTextWindow, username);
       return;
@@ -201,8 +201,8 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
     }
 
     // Use execCommand to insert text at the cursor position
-    document.execCommand('insertText', false, key);
-    
+    document.execCommand("insertText", false, key);
+
     // Save the updated content
     const updatedContent = activeTextWindow.innerHTML;
     if (lastActivefileName) {
@@ -210,32 +210,32 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       files[lastActivefileName] = updatedContent;
       saveFilesForUser(username, files);
     }
-    
+
     // Save cursor position
     saveCursorPosition(lastActiveTextWindow, username);
   };
 
   const handleEmojiClick = (emojiPath) => {
     if (!lastActiveTextWindow) return;
-    
+
     const activeTextWindow = document.getElementById(lastActiveTextWindow);
     if (!activeTextWindow) return;
 
     // Focus the text window
     activeTextWindow.focus();
-    
+
     // Restore cursor position before inserting emoji
     restoreCursorPosition(lastActiveTextWindow, username);
 
     // Create emoji HTML string
     const emojiHTML = `<img src="${emojiPath}" alt="emoji" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin:0 2px;">`;
-    
+
     // Use execCommand to insert HTML
-    document.execCommand('insertHTML', false, emojiHTML);
+    document.execCommand("insertHTML", false, emojiHTML);
 
     // add a space after the emoji to separate it from the next text
-    document.execCommand('insertText', false, " ");
-    
+    document.execCommand("insertText", false, " ");
+
     // Save the updated content
     const updatedContent = activeTextWindow.innerHTML;
     if (lastActivefileName) {
@@ -252,7 +252,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    
+
     // Save the new cursor position
     saveCursorPosition(lastActiveTextWindow, username);
   };
@@ -262,66 +262,24 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   };
 
   // Handle physical keyboard input - without useEffect
-  if (typeof window !== 'undefined' && !window._keyboardGlobals.listenersAttached) {
+  if (
+    typeof window !== "undefined" &&
+    !window._keyboardGlobals.listenersAttached
+  ) {
     // Create handlers that capture the current state
-    window._keyboardGlobals.keydownHandler = (event) => {
-      if (!lastActiveTextWindow) return;
-      
+    // Just modify the keyup handler to check for undefined values:
+
+    window._keyboardGlobals.keyupHandler = (event) => {
+      if (!event || !event.key) return; // Add this check
+
       const key = event.key === " " ? "Space" : event.key;
       const normalizedKey = key.toUpperCase();
 
-      // Handle special keys
-      if (normalizedKey === "CAPSLOCK") {
-        setIsCapsLockActive(prev => !prev);
-        return;
+      if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
+        setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
       }
 
-      const activeTextWindow = document.getElementById(lastActiveTextWindow);
-      if (!activeTextWindow) return;
-      
-      // Let the browser handle Enter, Tab and arrow keys naturally
-      if (["ENTER", "ARROWLEFT", "ARROWRIGHT", "ARROWUP", "ARROWDOWN", "TAB"].includes(normalizedKey)) {
-        // Just update cursor position after the operation
-        setTimeout(() => {
-          saveCursorPosition(lastActiveTextWindow, username);
-        }, 0);
-        return;
-      }
-
-      if (normalizedKey === "BACKSPACE") {
-        document.execCommand('delete', false);
-        
-        // Save updated content
-        const updatedContent = activeTextWindow.innerHTML;
-        if (lastActivefileName) {
-          const files = loadFilesForUser(username);
-          files[lastActivefileName] = updatedContent;
-          saveFilesForUser(username, files);
-        }
-        
-        // Update cursor position
-        setTimeout(() => {
-          saveCursorPosition(lastActiveTextWindow, username);
-        }, 0);
-        
-        event.preventDefault();
-      } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
-        // Insert regular text using execCommand
-        document.execCommand('insertText', false, event.key);
-        
-        // Save updated content
-        const updatedContent = activeTextWindow.innerHTML;
-        if (lastActivefileName) {
-          const files = loadFilesForUser(username);
-          files[lastActivefileName] = updatedContent;
-          saveFilesForUser(username, files);
-        }
-        
-        // Update cursor position
-        saveCursorPosition(lastActiveTextWindow, username);
-        
-        event.preventDefault();
-      }
+      setHighlighted((prev) => prev.filter((id) => id !== normalizedKey));
     };
 
     window._keyboardGlobals.keyupHandler = (event) => {
@@ -329,16 +287,16 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       const normalizedKey = key.toUpperCase();
 
       if (["SHIFT", "ALT", "CONTROL"].includes(normalizedKey)) {
-        setModifiers(prev => ({ ...prev, [normalizedKey]: false }));
+        setModifiers((prev) => ({ ...prev, [normalizedKey]: false }));
       }
 
-      setHighlighted(prev => prev.filter(id => id !== normalizedKey));
+      setHighlighted((prev) => prev.filter((id) => id !== normalizedKey));
     };
 
     // Attach the event listeners
     window.addEventListener("keydown", window._keyboardGlobals.keydownHandler);
     window.addEventListener("keyup", window._keyboardGlobals.keyupHandler);
-    
+
     // Mark listeners as attached
     window._keyboardGlobals.listenersAttached = true;
     setListenerState(true);

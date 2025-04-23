@@ -5,6 +5,13 @@ import {
   saveCursorPositionsForUser,
 } from "../../utils/localStorageUtils";
 
+// Global object to manage undo handlers
+if (typeof window !== 'undefined' && !window._textWindowGlobals) {
+  window._textWindowGlobals = {
+    undoHandlers: {}
+  };
+}
+
 function TextWindow({
   id,
   lastActiveFileName,
@@ -22,25 +29,7 @@ function TextWindow({
   const [undoStack, setUndoStack] = useState([]);
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
-
-  // Initialize content on first render
-  const initContent = () => {
-    const textWindow = document.getElementById(id);
-    if (textWindow && textWindow.innerHTML !== content) {
-      textWindow.innerHTML = content;
-      
-      // Setup custom event listener for undo
-      if (!textWindow._undoListenerAttached) {
-        textWindow._undoListenerAttached = true;
-        textWindow.addEventListener('custom:undo', handleUndo);
-      }
-    }
-  };
-
-  // Call init content on first render
-  if (document.getElementById(id)) {
-    initContent();
-  }
+  const [listenerAttached, setListenerAttached] = useState(false);
 
   // Cursor position saving function
   const saveCursorPosition = () => {
@@ -156,6 +145,91 @@ function TextWindow({
     }
   };
 
+  // Handle keyboard shortcuts - MOVED UP before initContent
+  const handleKeyDown = (e) => {
+    // Ctrl+Z for undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+    
+    // Handle Delete or Backspace with text selection
+    if ((e.key === 'Delete' || e.key === 'Backspace')) {
+      const selection = window.getSelection();
+      const hasSelection = selection.toString().trim().length > 0;
+      
+      if (hasSelection) {
+        // Save current state for undo first
+        const textWindow = document.getElementById(id);
+        setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
+        
+        // Let the default delete/backspace happen
+        // We just need to update after it's done
+        setTimeout(() => {
+          const updatedContent = textWindow.innerHTML;
+          onContentChange(updatedContent);
+          saveCursorPosition();
+        }, 0);
+      }
+    }
+  };
+
+  // Store the handleUndo function globally
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      // Get the last state
+      const lastContent = undoStack[undoStack.length - 1];
+      
+      // Update the content
+      const textWindow = document.getElementById(id);
+      if (textWindow) {
+        textWindow.innerHTML = lastContent;
+      }
+      
+      // Update parent component
+      onContentChange(lastContent);
+      
+      // Remove from undo stack
+      setUndoStack(prevStack => prevStack.slice(0, -1));
+      
+      // Restore cursor
+      setTimeout(restoreCursorPosition, 0);
+    }
+  };
+
+  // Add to global registry
+  window._textWindowGlobals.undoHandlers[id] = handleUndo;
+
+  // Initialize content on first render
+  const initContent = () => {
+    const textWindow = document.getElementById(id);
+    if (textWindow && textWindow.innerHTML !== content) {
+      textWindow.innerHTML = content;
+    }
+    
+    // Set up event handlers if not already done
+    if (!listenerAttached) {
+      const textWindow = document.getElementById(id);
+      if (textWindow) {
+        // Remove any existing listeners to prevent duplicates
+        textWindow.removeEventListener('custom:undo', window._textWindowGlobals.undoHandlers[id]);
+        textWindow.removeEventListener('keydown', handleKeyDown);
+        
+        // Add the new listeners
+        textWindow.addEventListener('custom:undo', window._textWindowGlobals.undoHandlers[id]);
+        textWindow.addEventListener('keydown', handleKeyDown);
+        
+        setListenerAttached(true);
+      }
+    }
+  };
+
+  // Call init content on first render
+  if (document.getElementById(id)) {
+    initContent();
+  }
+
   const handleFocus = () => {
     if (!isActive) {
       onSetActive();
@@ -188,28 +262,6 @@ function TextWindow({
     onContentChange(updatedContent);
     saveCursorPosition();
   };
-
-  const handleUndo = () => {
-    if (undoStack.length > 0) {
-      // Get the last state
-      const lastContent = undoStack[undoStack.length - 1];
-      
-      // Update the content
-      const textWindow = document.getElementById(id);
-      if (textWindow) {
-        textWindow.innerHTML = lastContent;
-      }
-      
-      // Update parent component
-      onContentChange(lastContent);
-      
-      // Remove from undo stack
-      setUndoStack(prevStack => prevStack.slice(0, -1));
-      
-      // Restore cursor
-      setTimeout(restoreCursorPosition, 0);
-    }
-  };
   
   const handleClearContent = () => {
     // Save current content for undo
@@ -232,6 +284,29 @@ function TextWindow({
     if (selection.toString().trim().length > 0) {
       setFormatMenuPosition({ x: e.pageX, y: e.pageY });
       setShowFormatMenu(true);
+    }
+  };
+
+  // Handle text deletion via keyboard or context menu
+  const handleDeleteSelectedText = () => {
+    const selection = window.getSelection();
+    if (selection.toString().trim().length > 0) {
+      // Save current state for undo
+      const textWindow = document.getElementById(id);
+      setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
+      
+      // Delete selected text
+      document.execCommand('delete', false);
+      
+      // Update content
+      const updatedContent = textWindow.innerHTML;
+      onContentChange(updatedContent);
+      
+      // Hide format menu if it's open
+      setShowFormatMenu(false);
+      
+      // Save cursor position
+      saveCursorPosition();
     }
   };
 
@@ -363,12 +438,21 @@ function TextWindow({
     }
   };
 
-  // Handle click outside format menu
-  document.addEventListener('mousedown', (e) => {
-    if (showFormatMenu && !e.target.closest(`.${styles.formatMenu}`)) {
-      setShowFormatMenu(false);
+  // Global click handler for outside format menu
+  if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+    // Safe way to add a document click handler
+    if (!window._formatMenuClickHandler) {
+      window._formatMenuClickHandler = function(e) {
+        if (showFormatMenu && e.target && !e.target.closest(`.${styles.formatMenu}`)) {
+          setShowFormatMenu(false);
+        }
+      };
+      
+      // Remove then add to prevent duplicates
+      document.removeEventListener('mousedown', window._formatMenuClickHandler);
+      document.addEventListener('mousedown', window._formatMenuClickHandler);
     }
-  });
+  }
 
   return (
     <>
@@ -395,6 +479,9 @@ function TextWindow({
           <button onClick={() => applyFormat('bold')}>Bold</button>
           <button onClick={() => applyFormat('italic')}>Italic</button>
           <button onClick={() => applyFormat('underline')}>Underline</button>
+          <button onClick={handleDeleteSelectedText} className={styles.deleteButton}>
+            Delete Selection
+          </button>
           
           <select onChange={(e) => applyFormat('foreColor', e.target.value)}>
             <option value="">Text Color</option>
