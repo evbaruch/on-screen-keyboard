@@ -13,15 +13,15 @@ function TextArea({
   lastActiveFileName,
   setlastActiveFileName,
 }) {
-  const [files, setFiles] = useState(loadFilesForUser(username) || {});
+  const [files, setFiles] = useState(loadFilesForUser(username) || {}); // files already exist for that user or no files 
   const [textWindows, setTextWindows] = useState([
-    { id: "textWindow1", fileName: "", content: "" },
+    { id: "textWindow1", fileName: "", content: "" }, // all the windows, for begining only one empty window
   ]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentSearchResults, setCurrentSearchResults] = useState([]);
-  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
-  const [isKeypressListenerAttached, setIsKeypressListenerAttached] =
-    useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // the search bar term
+  const [currentSearchResults, setCurrentSearchResults] = useState([]); // serach result from te search term 
+  const [currentResultIndex, setCurrentResultIndex] = useState(-1); // the result index of the search term
+  const [isKeypressListenerAttached, setIsKeypressListenerAttached] = 
+    useState(false); // CTRL + F
 
   // Helper function to get file content
   const getFileContent = (fileName) => {
@@ -39,6 +39,8 @@ function TextArea({
     });
     setIsKeypressListenerAttached(true);
   }
+
+  /*************** HANDLE SAVE TO FILE ************/
 
   const handleSave = (windowId) => {
     // Find the target text window
@@ -88,11 +90,13 @@ function TextArea({
     }
   };
 
+  /*************** HANDLE FILE CLICK ************/
+
   const handleFileClick = (fileName) => {
     const fileContent = getFileContent(fileName);
 
     // If we have an active window, open the file in that window
-    if (lastActiveTextWindow) {
+    if (lastActiveTextWindow) { // lastActiveTextWindow is window id 
       const updatedWindows = textWindows.map((window) =>
         window.id === lastActiveTextWindow
           ? { ...window, fileName, content: fileContent }
@@ -127,6 +131,8 @@ function TextArea({
 
     setlastActiveFileName(fileName);
   };
+
+  /*************** HANDLE CONTENT CHANGE ************/
 
   const handleContentChange = (windowId, newContent) => {
     // Find the window and update its content
@@ -223,15 +229,15 @@ function TextArea({
   const handleUndo = (windowId) => {
     // Use the global handler directly if available
     if (
-      window._textWindowGlobals &&
+      window._textWindowGlobals && 
       window._textWindowGlobals.undoHandlers &&
       window._textWindowGlobals.undoHandlers[windowId]
     ) {
-      window._textWindowGlobals.undoHandlers[windowId]();
+      window._textWindowGlobals.undoHandlers[windowId](); // check if undo exist 
     } else {
       // Fallback to event dispatch method
       const textWindowElement = document.getElementById(windowId);
-      if (textWindowElement) {
+      if (textWindowElement) { // else create custom event 
         const undoEvent = new CustomEvent("custom:undo");
         textWindowElement.dispatchEvent(undoEvent);
       }
@@ -441,7 +447,7 @@ function TextArea({
     if (!searchTerm) return true;
 
     try {
-      const regex = new RegExp(searchTerm, "i");
+      const regex = new RegExp(searchTerm, "i"); // creative regular expression of the serach term 
       return (
         (window.fileName && regex.test(window.fileName)) ||
         regex.test(window.content)

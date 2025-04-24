@@ -243,7 +243,7 @@ function TextWindow({
     }
     saveCursorPosition();
     
-    // Close format menu if it's open and user clicks elsewhere
+    // Close format menu if it's open and user clicks elsewhere 
     if (showFormatMenu) {
       const selection = window.getSelection();
       if (selection.toString().trim().length === 0) {
@@ -262,20 +262,8 @@ function TextWindow({
     onContentChange(updatedContent);
     saveCursorPosition();
   };
-  
-  const handleClearContent = () => {
-    // Save current content for undo
-    const textWindow = document.getElementById(id);
-    if (textWindow) {
-      setUndoStack(prevStack => [...prevStack, textWindow.innerHTML]);
-      textWindow.innerHTML = "";
-      onContentChange("");
-    }
-    if (onClearContent) {
-      onClearContent();
-    }
-  };
 
+  // right click
   const handleContextMenu = (e) => {
     e.preventDefault();
     
