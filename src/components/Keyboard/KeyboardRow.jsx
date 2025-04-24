@@ -2,7 +2,7 @@ import React from "react";
 import styles from "./keyboard.module.css";
 import KeyboardKey from "./KeyboardKey";
 
-function KeyboardRow({ row, highlighted, modifiers, isCapsLockActive, onMouseDown, onMouseUp, keyboardLanguage }) {
+function KeyboardRow({ row, highlighted, modifiers, isCapsLockActive, onMouseDown, onMouseUp, keyboardLanguage, specialKeysMode }) {
   return (
     <div className={styles.row}>
       {row.map((keyObj, index) => (
@@ -15,6 +15,7 @@ function KeyboardRow({ row, highlighted, modifiers, isCapsLockActive, onMouseDow
           onMouseDown={onMouseDown}
           onMouseUp={onMouseUp}
           keyboardLanguage={keyboardLanguage}
+          specialKeysMode={specialKeysMode}
         />
       ))}
     </div>

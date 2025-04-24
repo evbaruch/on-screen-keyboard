@@ -27,6 +27,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   const [listenerState, setListenerState] = useState(false); // Just to track listener state
   const [keyboardLanguage, setKeyboardLanguage] = useState("EN"); // Add keyboard language state
   const [highlightTimeouts, setHighlightTimeouts] = useState({});
+  const [specialKeysMode, setSpecialKeysMode] = useState(false); // Add special keys toggle state
 
   const toggleEmojiKeyboard = () => {
     setShowEmojiKeyboard((prev) => !prev);
@@ -35,6 +36,11 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   // Add language toggle function
   const toggleLanguage = () => {
     setKeyboardLanguage(prev => prev === "EN" ? "HE" : "EN");
+  };
+  
+  // Add special keys toggle function
+  const toggleSpecialKeysMode = () => {
+    setSpecialKeysMode(prev => !prev);
   };
 
   // Improved cursor position handling function
@@ -245,12 +251,12 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
       saveCursorPosition(lastActiveTextWindow, username);
       return;
     } else {
-      // Handle character insertion based on language and modifiers
+      // Handle character insertion based on language, modifiers and special keys mode
       if (keyboardLanguage === "HE" && keyObj && keyObj.fourth) {
         // Use Hebrew character if available in current language
         keyToInsert = keyObj.fourth;
-      } else if (modifiers.Shift && keyObj && keyObj.shift) {
-        // Use shift character if shift is held
+      } else if ((modifiers.Shift || specialKeysMode) && keyObj && keyObj.shift) {
+        // Use shift character if shift is held OR special keys mode is active
         keyToInsert = keyObj.shift;
       } else if (modifiers.Alt && keyObj && keyObj.alt) {
         // Use alt character if alt is held
@@ -392,7 +398,22 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
         event.preventDefault();
       } else if (!["SHIFT", "ALT", "CONTROL", "META"].includes(normalizedKey)) {
         // Insert regular text using execCommand
-        document.execCommand("insertText", false, event.key);
+        let textToInsert = event.key;
+        
+        // Apply special keys mode for physical keyboard input
+        if (specialKeysMode && event.key.length === 1) {
+          // Find the matching key in keyboard layout to get its shift character
+          for (const row of keyboardLayout) {
+            for (const keyObj of row) {
+              if (keyObj.key.toLowerCase() === event.key.toLowerCase() && keyObj.shift) {
+                textToInsert = keyObj.shift;
+                break;
+              }
+            }
+          }
+        }
+        
+        document.execCommand("insertText", false, textToInsert);
 
         // Save updated content
         const updatedContent = activeTextWindow.innerHTML;
@@ -446,12 +467,22 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
   return (
     <div className={styles.keyboardContainer}>
       <div className={styles.keyboardControls}>
-        <button 
-          onClick={toggleEmojiKeyboard} 
-          className={styles.toggleButton}
-        >
-          {showEmojiKeyboard ? "Switch to Keyboard" : "Switch to Emoji Keyboard"}
-        </button>
+        <div className={styles.controlsLeft}>
+          <button 
+            onClick={toggleEmojiKeyboard} 
+            className={styles.toggleButton}
+          >
+            {showEmojiKeyboard ? "Switch to Keyboard" : "Switch to Emoji Keyboard"}
+          </button>
+          
+          {/* Special Keys Toggle Button */}
+          <button 
+            onClick={toggleSpecialKeysMode}
+            className={`${styles.toggleButton} ${specialKeysMode ? styles.active : ""}`}
+          >
+            {specialKeysMode ? "Special Keys: ON" : "Special Keys: OFF"}
+          </button>
+        </div>
         
         {/* Language toggle button */}
         <button 
@@ -476,6 +507,7 @@ function Keyboard({ username, lastActiveTextWindow, lastActivefileName }) {
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
               keyboardLanguage={keyboardLanguage}
+              specialKeysMode={specialKeysMode}
             />
           ))
         )}

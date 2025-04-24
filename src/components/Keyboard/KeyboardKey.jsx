@@ -1,18 +1,18 @@
 import React from "react";
 import styles from "./keyboard.module.css";
 
-function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive, onMouseDown, onMouseUp, keyboardLanguage }) {
+function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive, onMouseDown, onMouseUp, keyboardLanguage, specialKeysMode }) {
   const { id, key, className, shift, alt, fourth } = keyObj;
 
-  // Determine the label to display based on language and modifiers
+  // Determine the label to display based on language, modifiers and special keys mode
   const getKeyLabel = () => {
     // If Hebrew is active and there's a Hebrew character available, show it
     if (keyboardLanguage === "HE" && fourth) {
       return fourth;
     }
     
-    // Otherwise use the standard modifier logic
-    if (modifiers.Shift && shift) {
+    // Show shift character if shift is pressed OR special keys mode is active
+    if ((modifiers.Shift || specialKeysMode) && shift) {
       return shift;
     }
     
@@ -33,7 +33,7 @@ function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive, onMouse
   
   // Special class for active modifier keys
   const isModifierActive = 
-    (id === "left-shift" || id === "right-shift") && modifiers.Shift ||
+    (id === "left-shift" || id === "right-shift") && (modifiers.Shift || specialKeysMode) ||
     (id === "alt-left" || id === "alt-right") && modifiers.Alt ||
     id === "capslock" && isCapsLockActive;
 
@@ -56,7 +56,7 @@ function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive, onMouse
       {keyboardLanguage === "EN" ? (
         <>
           {/* For English mode, show standard secondary labels */}
-          {shift && <div className={styles.secondary}>{shift}</div>}
+          {shift && !specialKeysMode && <div className={styles.secondary}>{shift}</div>}
           {alt && <div className={styles.tertiary}>{alt}</div>}
           {fourth && <div className={styles.fourth}>{fourth}</div>}
         </>
@@ -71,6 +71,11 @@ function KeyboardKey({ keyObj, highlighted, modifiers, isCapsLockActive, onMouse
       {/* CapsLock indicator */}
       {id === "capslock" && isCapsLockActive && (
         <div className={styles.capsLockIndicator}></div>
+      )}
+      
+      {/* Special keys mode indicator */}
+      {id === "left-shift" && specialKeysMode && (
+        <div className={styles.specialModeIndicator}></div>
       )}
     </div>
   );
